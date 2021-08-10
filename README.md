@@ -1,5 +1,5 @@
 # CircModDesign
-<<<<<<< Updated upstream
-A repository of julia functions relavent to circuit modeling/design
+
+A repository of Julia functions relevant to circuit modeling/design
 =======
 >>>>>>> Stashed changes
