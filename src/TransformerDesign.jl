@@ -41,12 +41,3 @@ function RunMagnetizingFlux(WireD,CoreID,Ae,Le,AL,NRatio,VPk,ω)
     BCore(mT)       = $(round(BCore*1e3;sigdigits=3))
     ")
 end
-
-
-function I2(L1,L2,M,R1,R2)
-    TransformerDiff = M*s / ((R1+L1*s)*(R2+L2*s) - M^2*s^2)
-end
-
-Vin(freq) = s/(s^2 + (2*pi*freq)^2)
-Y = Vin(25e3)*I2(1e4,1e4,1e4,1,1)
-data = simulate(Y,.001,nb_time_points=10000)

@@ -1,6 +1,7 @@
 
 using PyPlot
 using Optim
+
 function PlotNoise_VsR(en,in;YLims = [1e-10,1e-8])
     k_b = 1.38e-23
     R_L_List = 1:1:1e5
@@ -22,6 +23,7 @@ function PlotNoise_VsR(en,in;YLims = [1e-10,1e-8])
     xscale("log")
     yscale("log")
 end
+
 function PlotNoiseFigure_VsR(en,in;YLims = [1 10])
     k_b = 1.38e-23
     R_L_List = 1:1:1e5
@@ -62,6 +64,7 @@ function Noise(R_L,en,in;T=300)
     k_b = 1.38e-23
      sqrt.(4*k_b*T*R_L) .+ en .+ in*R_L
  end
+
 function ThermalNoise(R_L)
     k_b = 1.38e-23
      sqrt.(4*k_b*300*R_L)
