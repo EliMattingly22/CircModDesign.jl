@@ -1,7 +1,8 @@
 using Optim
-using Plots
+using PyPlot
 using FFTW
 using ACME
+using ElectricalEngineering
 include("ToroidOptimizer.jl")
 
 function  DesignDriveFilter(LDrive, RDrive, TargetZ,DriveFreq; CDrive = 1e6, NumDriveElements = 1,WireDiam = 2e-3,WireFillFac = .75)
@@ -175,4 +176,116 @@ function Butterworth_2(Z,f)
     C = 1/(2*pi*f)/Z*sqrt(2)
     L = 1/(2*pi*f)*Z*sqrt(2)
     return (L,C)
+end
+
+
+
+
+function PlotPhasor(
+    Impedance::Tuple,
+    PrevImpedance;
+    Color = nothing,
+    NumSteps = 1,
+    Admittance = false,
+    HeadWidth=0.01
+)
+
+    ## This function takes in an impedance, and plots it using 'phasor()'
+    #optionally, it takes in a previous impedance which can be added in series or parallel
+    #It then plots the line using PrevImpedance as a base
+    #If Admittance is true, it means the inputs are Admittance not impedance, so parallel and series are switched
+    NewImp = 0+0im
+    dx = 0
+    dy = 0
+    for I = 1:NumSteps
+        if I >1
+        #    Color = "gray"
+        end
+        if lowercase(Impedance[2]) == "series"
+            if !Admittance
+                NewImp = PrevImpedance + Impedance[1] / NumSteps
+            else
+                NewImp = Par(PrevImpedance, Impedance[1] * NumSteps)
+            end
+        elseif lowercase(Impedance[2]) == "parallel"
+            if !Admittance
+                NewImp = Par(PrevImpedance, Impedance[1] * NumSteps)
+            else
+                NewImp = PrevImpedance + Impedance[1] / NumSteps
+            end
+        else
+            error("must be series or parallel")
+        end
+
+        RealParts = [real(NewImp), real(PrevImpedance)]
+        ImagParts = [imag(NewImp), imag(PrevImpedance)]
+
+                    dx = -(RealParts[2]-RealParts[1])
+                    dy = -(ImagParts[2]-ImagParts[1])
+        if Color != nothing
+
+
+
+                PyPlot.plot(RealParts, ImagParts, color = "gray")
+
+            if I == 1
+                phasor(PrevImpedance, color = Color)
+            end
+        else
+            PyPlot.plot(RealParts, ImagParts)
+            if I == 1
+                phasor(PrevImpedance)
+            end
+        end
+        PrevImpedance = NewImp
+    end
+    arrow(real(NewImp)-dx,imag(NewImp)-dy,dx,dy,head_width=HeadWidth,fc="gray",ec="k",alpha=1.,width = 0.00001,head_length= 2*HeadWidth)
+
+    xlabel("Real")
+    ylabel("Imag.")
+    return NewImp
+end
+
+function PlotImpedanceTransformList(ImpList;InitialImp = nothing,ArrHeadWidth)
+    ColorList = ["r","g","b","magenta","teal"]
+    L=zeros(length(ImpList))
+    for I in 1:length(ImpList)
+        L[I] = abs(ImpList[I][1])
+    end
+    LongestVector = maximum(L)
+    HeadWidth = LongestVector/ArrHeadWidth
+    ##Impedance Plotting
+    if InitialImp != nothing
+        PrevImp = InitialImp
+        StartVal = 1
+    else
+        PrevImp= ImpList[1][1]
+        StartVal=2
+    end
+    for I in StartVal:length(ImpList)
+        PrevImp = PlotPhasor(ImpList[I],PrevImp;NumSteps=500,Color = ColorList[I],HeadWidth=HeadWidth)
+    end
+    phasor(PrevImp,color=ColorList[length(ImpList)+1])
+    title("Impedance")
+    ##Admittance Plotting
+    figure()
+
+    L=zeros(length(ImpList))
+    for I in 1:length(ImpList)
+        L[I] = abs(1/ImpList[I][1])
+    end
+    LongestVector = maximum(L)
+    HeadWidth = LongestVector/ArrHeadWidth
+    if InitialImp != nothing
+        PrevImp = 1/InitialImp
+        StartVal = 1
+    else
+        PrevImp= 1/ImpList[1][1]
+        StartVal=2
+    end
+    for I in StartVal:length(ImpList)
+        PrevImp = PlotPhasor((1/ImpList[I][1],ImpList[I][2]),PrevImp;NumSteps=500,Color = ColorList[I],Admittance=true,HeadWidth=HeadWidth)
+    end
+    phasor(PrevImp,color=ColorList[length(ImpList)+1])
+    title("Admittance")
 end
