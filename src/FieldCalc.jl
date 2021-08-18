@@ -1,4 +1,7 @@
 ## Biot savart law
+using LinearAlgebra
+using PyPlot
+using MPI_Tools
 μ₀ = 4*π*1e-7
 
 VecDist(X::Array) = [ X[2,1]-X[1,1], X[2,2]-X[1,2] , X[2,3]-X[1,3]]
@@ -24,7 +27,7 @@ function BiotSav(PointPath,r;Current=1,MinThreshold = 0.01)
 
         end
     else
-        plot(r[1],r[2],"r*")
+    #    plot(r[1],r[2],"r*")
     end
     sum(dB,dims=1)
 end
@@ -42,11 +45,11 @@ function FieldOnAxis_Circ(R,z;I=1)
     Bz = μ₀*2*pi*R^2*I ./ (4*π* (z^2 + R^2)^(3/2))
 end
 
-x = -1:.1:1
-y = x
-DefField = [BiotSav(PointPath,[i,j,k];MinThreshold= 0.05)[3]
-            for i in x,
-                j in y,
-                k=0]
-X,Y = MPI_Tools.meshgrid(x,y)
-surf(DefField,cmap="jet")
+# x = -.3:.01:.3
+# y = x
+# DefField = [BiotSav(MakeEllip(1,1;Center = [0,0,0],NPts=1000),[i,j,k];MinThreshold= 0.05)[3]
+#             for i in x,
+#                 j in y,
+#                 k=0]
+# X,Y = MPI_Tools.meshgrid(x,y)
+# PyPlot.surf(X[:],Y[:],DefField[:],cmap="jet")
