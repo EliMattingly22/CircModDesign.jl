@@ -134,6 +134,11 @@ git-tree-sha1 = "a32185f5428d3986f47c2ab78b1f216d5e6cc96f"
 uuid = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
 version = "0.8.5"
 
+[[Elliptic]]
+git-tree-sha1 = "71c79e77221ab3a29918aaf6db4f217b89138608"
+uuid = "b305315f-e792-5b7a-8f41-49f472929428"
+version = "1.0.1"
+
 [[FFTW]]
 deps = ["AbstractFFTs", "FFTW_jll", "IntelOpenMP_jll", "Libdl", "LinearAlgebra", "MKL_jll", "Reexport"]
 git-tree-sha1 = "1b48dbde42f307e48685fa9213d8b9f8c0d87594"
@@ -283,7 +288,7 @@ version = "2021.1.1+1"
 
 [[MPI_Tools]]
 deps = ["FFTW", "HDF5", "MAT", "Optim", "PyPlot"]
-git-tree-sha1 = "a357545a3aa843676ce688d5d477b50317258c6f"
+git-tree-sha1 = "6a2332480177c5824f246a55d38704f04abbc405"
 repo-rev = "main"
 repo-url = "https://github.com/EliMattingly22/MPI_Tools.git"
 uuid = "97d903a3-cacc-4b79-8a19-43190c4af4ff"

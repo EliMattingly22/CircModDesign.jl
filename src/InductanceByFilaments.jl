@@ -26,7 +26,8 @@ The output is the overall inductance including any mutual inductances
 
     μ₀ = 4 * π * 1e-7
 
-    RMesh, AMesh = MPI_Tools.meshgrid(R_List)
+    RMesh, AMesh = MPI_Tools.meshgrid(R_List,dims=2)
+
     KVal = similar(RMesh)
     EValue = similar(RMesh)
 
@@ -49,8 +50,8 @@ end
 
 function f(r,z)
 
-    RMesh, AMesh = MPI_Tools.meshgrid(r)
-    ZMesh_A, ZMesh_B = MPI_Tools.meshgrid(z)
+    RMesh, AMesh = MPI_Tools.meshgrid(r,dims=2)
+    ZMesh_A, ZMesh_B = MPI_Tools.meshgrid(z,dims=2)
     ZDelta = ZMesh_A .- ZMesh_B
     out = sqrt.( (4 .* RMesh.*AMesh ) ./ (ZDelta.^2 .+ (RMesh .+ AMesh).^2) )
     replace!(x -> x>=1 ? 1-eps() : x,out)

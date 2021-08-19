@@ -53,3 +53,22 @@ end
 #                 k=0]
 # X,Y = MPI_Tools.meshgrid(x,y)
 # PyPlot.surf(X[:],Y[:],DefField[:],cmap="jet")
+
+function MakeEllipTestPoints(r₁,r₂;Center = [0,0,0],NPts=6,Layers = 3)
+    LL=1
+    X,Y,Z = ([r₁*LL/(Layers+1) .* cos.(I/NPts *2*π) for I in 1:NPts].+Center[1],
+             [r₂ *LL/(Layers+1) .* sin.(I/NPts *2*π) for I in 1:NPts].+Center[2],
+             [0 for I in 1:NPts].+Center[3])
+             Coords = hcat(X,Y,Z)
+    for LL in 2:Layers
+        X₁,Y₁,Z₁ = ([r₁*LL/(Layers+1) .* cos.(I/NPts *2*π) for I in 1:NPts].+Center[1],
+                 [r₂ *LL/(Layers+1) .* sin.(I/NPts *2*π) for I in 1:NPts].+Center[2],
+                 [0 for I in 1:NPts].+Center[3])
+                 Coords = hcat(X,Y,Z)
+        X = vcat(X,X₁)
+        Y = vcat(Y,Y₁)
+        Z = vcat(Z,Z₁)
+
+     end
+     return X,Y,Z
+ end
