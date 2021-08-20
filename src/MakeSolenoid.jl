@@ -12,7 +12,7 @@ function MakeEllipSolenoid(
     z = x,
 )
 Xtp,Ytp,Ztp = MakeEllipTestPoints(r₁,r₂;Center = [0,0,0],NPts=6,Layers = 3)
-for wind_num = 2:N
+for wind_num in 2:N
     Xtp1,Ytp1,Ztp1 = MakeEllipTestPoints(r₁,r₂;Center = [0,0,(wind_num - 1) / N * L],NPts=6,Layers = 3)
     Xtp = vcat(Xtp,Xtp1)
     Ytp= vcat(Ytp,Ytp1)
@@ -30,7 +30,7 @@ end
             ),
             [i, j, k];
             MinThreshold = 0.05,
-        )[3] for i in Xtp, j in Ytp, k in Ztp, wind_num = 1:N
+        )[3] for i in Xtp, j in Ytp, k in Ztp, wind_num in 1:N
     ]
     X, Y, Z = MPI_Tools.meshgrid(x, y, z)
     MeanRad = (r₁ + r₂) / 2
@@ -56,12 +56,12 @@ end
 end
 
 
+Field3D =DefField
+IndNum = 2
+Xs = X[IndNum, :, :]
+Ys = Y[IndNum, :, :]
+Zs = Z[IndNum, :, :]
+FieldSlice = sum(Field3D, dims = 4)[IndNum, :, :]
 
-# IndNum = 2
-# Xs = X[IndNum, :, :]
-# Ys = Y[IndNum, :, :]
-# Zs = Z[IndNum, :, :]
-# FieldSlice = sum(Field3D, dims = 4)[IndNum, :, :]
-#
-# pcolormesh(Ys, Zs, FieldSlice)
-# X,Y = MPI_Tools.meshgrid(x,y)
+pcolormesh( FieldSlice)
+X,Y = MPI_Tools.meshgrid(x,y)
