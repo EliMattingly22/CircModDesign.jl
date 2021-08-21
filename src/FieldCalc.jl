@@ -23,7 +23,7 @@ function BiotSav(PointPath,r;Current=1,MinThreshold = 0.01)
             RDist = sqrt(sum(Rprime.^2))
             R̂ = Rprime/RDist
 
-                dB[I-1,:] = μ₀/(4*π) .* Current.*LinearAlgebra.cross(dL,R̂[:]) ./ (RDist)^3
+                dB[I-1,:] = μ₀/(4*π) .* Current.*LinearAlgebra.cross(dL,R̂[:]) ./ (RDist)^2
 
         end
     else
