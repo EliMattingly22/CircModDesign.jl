@@ -5,71 +5,22 @@ function MakeEllipSolenoid(
     r₂,#Radius 2 of ellipse
     L; #Length of solenoid in meters
     StrandDiam = 0.3e-3,
-    InsDiam = 1.e-3,
+    InsDiam = 0.9*1e-3,
     ϵr_ins = 4,
     NPts_Coil = 100,
-    x = -.3:0.1:0.3, #FOV Vectors
-    y = x,
-    z = x,
+
 )
 
 ##
-MeasLayers = 55#Number of concentric layers to calc field
-PtsPerLayer =  6
-A_All = zeros(MeasLayers*PtsPerLayer,3,N)
-Weights = zeros(MeasLayers*PtsPerLayer)
-NPtsPerSlice = MeasLayers*PtsPerLayer
-for wind_num in 1:N
-    A_All[:,1,wind_num],A_All[:,2,wind_num],A_All[:,3,wind_num]  =
-     MakeEllipTestPoints(r₁,r₂;Center = [0,0,(wind_num - 1) / N * L],
-                                            NPts=PtsPerLayer,
-                                            Layers = MeasLayers)
-
-end
-SliceArea = π*r₁*r₂
-Weights = sum(A_All[:,1:2,1].^2,dims=2) #A matrix that weights each value based on radius
-Weights = Weights / sum(Weights)*NPtsPerSlice  #normalizing
-
-ΦAll = zeros(N,N,3)
-
-for Wᵢ in 1:N
-    for Aᵢ in 1:N
-        DeconstructA =
-                    [([A_All[i,1,Aᵢ],A_All[i,2,Aᵢ],A_All[i,3,Aᵢ]]) for i in 1:length(Weights)]
-        Field3DSlice = [
-            BiotSav(
-                MakeEllip(
-                            r₁, #Radius 1 of ellipse
-                            r₂;#Radius 2 of ellipse
-                            Center = [0, 0, (Wᵢ - 1) / N * L], #The solenoid's axis is in Z
-                            NPts = NPts_Coil, #How discretized the windings are
-                            ),
-                    TestLoc;
-                    MinThreshold = 0.001,
-                    )
-                    for TestLoc in DeconstructA
-                    ]
-
-     Bweighted = vcat( [(Field3DSlice[i].*Weights[i]) for i in 1:length(Weights)]...)
-      # Bweighted = vcat( [(Field3DSlice[i]) for i in 1:length(Weights)]...)
-
-     ΦAll[Wᵢ,Aᵢ,:] =sum(Bweighted,dims=1).*SliceArea ./NPtsPerSlice
-    # ΦAll[Wᵢ,Aᵢ,:] =sum(Bweighted,dims=1) ./NPtsPerSlice
-    end
-    println("$Wᵢ of $N windings calculated")
-end
-
-LMat = LfromΦMat(ΦAll)
-LTotal = sum(LMat)*1e6
-
+FieldCentered = EvalField_Centered(N,r₁,r₂,L)
 ##
 
-    X, Y, Z = MPI_Tools.meshgrid(x, y, z)
     MeanRad = (r₁ + r₂) / 2
-    ZCoord = [(wind_num - 1) / N * L for wind_num = 1:N]
-    RCoords = MeanRad .* ones(length(ZCoord))
-    Coords = hcat(RCoords[:], ZCoord[:])
-    L_Coil = CalcInductance(Coords)
+    # ZCoord = [(wind_num - 1) / N * L for wind_num = 1:N]
+    # RCoords = MeanRad .* ones(length(ZCoord))
+    # Coords = hcat(RCoords[:], ZCoord[:])
+    # L_Coil = CalcInductance(Coords)
+    L_Coil = SimpleInduct(N,MeanRad,L)
     C_Coil =
         Ceq(2 * MeanRad, StrandDiam / 2, L / N, InsDiam / 2, ϵr_ins) / N * 3
     #D - solenoid diameter in meters
@@ -111,4 +62,89 @@ function LfromΦMat(ΦMat)
     end
 
     return LMat
+end
+
+
+function EvalInduct_Biot(
+    N, #Number of turns
+    r₁, #Radius 1 of ellipse
+    r₂,#Radius 2 of ellipse
+    L; #Length of solenoid in meters
+    MeasLayers = 55#Number of concentric layers to calc field
+    PtsPerLayer =  6
+    )
+
+
+    A_All = zeros(MeasLayers*PtsPerLayer,3,N)
+    Weights = zeros(MeasLayers*PtsPerLayer)
+    NPtsPerSlice = MeasLayers*PtsPerLayer
+    for wind_num in 1:N
+        A_All[:,1,wind_num],A_All[:,2,wind_num],A_All[:,3,wind_num]  =
+         MakeEllipTestPoints(r₁,r₂;Center = [0,0,(wind_num - 1) / N * L],
+                                                NPts=PtsPerLayer,
+                                                Layers = MeasLayers)
+
+    end
+    SliceArea = π*r₁*r₂
+    Weights = sum(A_All[:,1:2,1].^2,dims=2) #A matrix that weights each value based on radius
+    Weights = Weights / sum(Weights)*NPtsPerSlice  #normalizing
+
+    ΦAll = zeros(N,N,3)
+
+    for Wᵢ in 1:N
+        for Aᵢ in 1:N
+            DeconstructA =
+                        [([A_All[i,1,Aᵢ],A_All[i,2,Aᵢ],A_All[i,3,Aᵢ]]) for i in 1:length(Weights)]
+            Field3DSlice = [
+                BiotSav(
+                    MakeEllip(
+                                r₁, #Radius 1 of ellipse
+                                r₂;#Radius 2 of ellipse
+                                Center = [0, 0, (Wᵢ - 1) / N * L], #The solenoid's axis is in Z
+                                NPts = NPts_Coil, #How discretized the windings are
+                                ),
+                        TestLoc;
+                        MinThreshold = 0.001,
+                        )
+                        for TestLoc in DeconstructA
+                        ]
+
+         Bweighted = vcat( [(Field3DSlice[i].*Weights[i]) for i in 1:length(Weights)]...)
+          # Bweighted = vcat( [(Field3DSlice[i]) for i in 1:length(Weights)]...)
+
+         ΦAll[Wᵢ,Aᵢ,:] =sum(Bweighted,dims=1).*SliceArea ./NPtsPerSlice
+        # ΦAll[Wᵢ,Aᵢ,:] =sum(Bweighted,dims=1) ./NPtsPerSlice
+        end
+        println("$Wᵢ of $N windings calculated")
+    end
+
+    LMat = LfromΦMat(ΦAll)
+    LTotal = sum(LMat)*1e6
+end
+
+function EvalField_Centered(
+    N, #Number of turns
+    r₁, #Radius 1 of ellipse
+    r₂,#Radius 2 of ellipse
+    L; #Length of solenoid in meters
+    NPts_Coil=100
+    )
+
+
+
+            FieldCentered = [
+                BiotSav(
+                    MakeEllip(
+                                r₁, #Radius 1 of ellipse
+                                r₂;#Radius 2 of ellipse
+                                Center = [0, 0, (Wᵢ - 1) / N * L], #The solenoid's axis is in Z
+                                NPts = NPts_Coil, #How discretized the windings are
+                                ),
+                        [0, 0, L/2];
+                        MinThreshold = 0.001,
+                        )[3]
+                        for Wᵢ in 1:N
+                        ]
+
+    return sum(FieldCentered)
 end

@@ -60,3 +60,22 @@ function f(r,z)
 
     return out
 end
+
+@doc """
+SIMPLE INDUCTANCE FORMULAS FOR RADIO COILS*
+BY HAROLD A. WHEELER
+This is an empirical formula for inductance
+    Takes in turns(N), radius (a), and length (b)
+    the formulation was designed for inches, but by default
+    this function assumes meters.
+""" ->function SimpleInduct(N,a,b;units = "meters")
+    if units=="meters"
+        a = a/25.4e-3
+        b = b/25.4e-3
+    elseif units == "inches"
+    else
+    error("unknown units")
+    end
+
+    L = (a^2*N^2 / (9*a + 10*b))*1e-6
+end
