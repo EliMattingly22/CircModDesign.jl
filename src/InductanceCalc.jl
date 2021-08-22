@@ -1,10 +1,14 @@
 using Elliptic
-@doc """
+"""
 This function calculates the inductance for an N array of coaxial wire loops
 
 The input is an N x 2 array of coordinates [R₁ Θ₁;...;Rₙ Θₙ]
 The output is the overall inductance including any mutual inductances
-"""->function CalcInductance(Coords)
+
+For strange arrangements of loops, this may be useful, but for simple solenoids, other methods are desireable
+Empirical formulas (``SimpleInduct'') will be more accurate and less cumbersome in those cases.
+"""
+function CalcInductance(Coords)
     #Thus function takes in two vectors listing the centroid [in polar coords]
     #of series-wound strands of wire to form a coil. It also takes in the index
     #(of the vector) that different coil "segments" are wound from. An example
@@ -61,14 +65,15 @@ function f(r,z)
     return out
 end
 
-@doc """
+"""
 SIMPLE INDUCTANCE FORMULAS FOR RADIO COILS*
 BY HAROLD A. WHEELER
 This is an empirical formula for inductance
     Takes in turns(N), radius (a), and length (b)
     the formulation was designed for inches, but by default
     this function assumes meters.
-""" ->function SimpleInduct(N,a,b;units = "meters")
+"""
+function SimpleInduct(N,a,b;units = "meters")
     if units=="meters"
         a = a/25.4e-3
         b = b/25.4e-3

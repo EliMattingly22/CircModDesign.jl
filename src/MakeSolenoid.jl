@@ -1,4 +1,18 @@
 using LinearAlgebra
+
+"""
+This function makes an elliptic solenoid and calculates the inductance, capacitance, and resistance
+    The inputs are:
+    N - Number of turns
+    r₁ - one radius of the ellipse
+    r₂ - Second radius of ellipse
+    L - length of solenoid (axially)
+    kwargs:
+    StrandDiam - Conductor diamter(m)
+    InsDiam = insulation diamter (m),
+    ϵr_ins - relative permittivity of insulation
+    NPts_Coil  - number of points that each wire loop will be discretized into,
+"""
 function MakeEllipSolenoid(
     N, #Number of turns
     r₁, #Radius 1 of ellipse
@@ -65,6 +79,27 @@ function LfromΦMat(ΦMat)
 end
 
 
+"""
+This function makes an elliptic solenoid and calculates the inductance.
+    The function calculates the flux through the center of each loop's cross-section
+        Lₛ = Φ/I (self inductance = flux per amp)
+        Lₘ₂₁ = (Φ₂₁ ⋅ Φ₂₂/|Φ₂₂|) /I
+            -mutual inductance from the 1ˢᵗ wire on 2ⁿᵈ is flux from 1 in the 2ⁿᵈ's cross section
+            that is aligned with the flux from the second on itself. All per ampere
+        Lₘ₂₁ = Lₘ₁₂
+        Total L = ∑ᵢ∑ⱼ(Lᵢⱼ)
+    The inputs are:
+    N - Number of turns
+    r₁ - one radius of the ellipse
+    r₂ - Second radius of ellipse
+    L - length of solenoid (axially)
+    kwargs:
+    MeasLayers - Number of concentric layers to calc field
+                    The field is calculated over concentric ellipses (linearly spaced)
+                    This is the number of concentric test point layers
+    PtsPerLayer -  Number of test points per layer
+    NPts_Coil  - number of points that each wire loop will be discretized into,
+"""
 function EvalInduct_Biot(
     N, #Number of turns
     r₁, #Radius 1 of ellipse
@@ -72,6 +107,7 @@ function EvalInduct_Biot(
     L; #Length of solenoid in meters
     MeasLayers = 55#Number of concentric layers to calc field
     PtsPerLayer =  6
+    NPts_Coil = 500
     )
 
 
@@ -122,6 +158,19 @@ function EvalInduct_Biot(
     LTotal = sum(LMat)*1e6
 end
 
+"""
+This function makes an elliptic solenoid and calculates the field at the center of the solenoid
+        Lₘ₂₁ = Lₘ₁₂
+        Total L = ∑ᵢ∑ⱼ(Lᵢⱼ)
+    The inputs are:
+    N - Number of turns
+    r₁ - one radius of the ellipse
+    r₂ - Second radius of ellipse
+    L - length of solenoid (axially)
+    kwargs:
+
+    NPts_Coil  - number of points that each wire loop will be discretized into,
+"""
 function EvalField_Centered(
     N, #Number of turns
     r₁, #Radius 1 of ellipse
