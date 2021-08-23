@@ -1,5 +1,5 @@
 
-include("MyBisect.jl")
+
 abstract type Toroid end
 
 struct DCore<:Toroid

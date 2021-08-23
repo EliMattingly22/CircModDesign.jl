@@ -2,7 +2,6 @@
 using LinearAlgebra
 using PyPlot
 using MPI_Tools
-μ₀ = 4*π*1e-7
 
 VecDist(X::Array) = [ X[2,1]-X[1,1], X[2,2]-X[1,2] , X[2,3]-X[1,3]]
 #X is the 2 coordinates to take distance between in format of [x₁,y₁,z₁;x₂,y₂,z₂]
