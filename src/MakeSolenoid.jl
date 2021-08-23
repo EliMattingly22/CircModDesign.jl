@@ -52,16 +52,16 @@ FieldCentered = EvalField_Centered(N,r₁,r₂,L)
     return L_Coil, C_Coil, SRF, DefField, X, Y, Z
 end
 
-
-Field3D =DefField
-IndNum = 2
-Xs = X[IndNum, :, :]
-Ys = Y[IndNum, :, :]
-Zs = Z[IndNum, :, :]
-FieldSlice = sum(Field3D, dims = 4)[IndNum, :, :]
-
-pcolormesh( FieldSlice)
-X,Y = MPI_Tools.meshgrid(x,y)
+# 
+# Field3D =DefField
+# IndNum = 2
+# Xs = X[IndNum, :, :]
+# Ys = Y[IndNum, :, :]
+# Zs = Z[IndNum, :, :]
+# FieldSlice = sum(Field3D, dims = 4)[IndNum, :, :]
+#
+# pcolormesh( FieldSlice)
+# X,Y = MPI_Tools.meshgrid(x,y)
 
 
 function LfromΦMat(ΦMat)
