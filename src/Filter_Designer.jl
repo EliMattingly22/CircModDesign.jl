@@ -140,7 +140,10 @@ FFT_y = abs.(fft(y))/length(y) .* 4
 Mags[Int((F-FreqList[1])/df)+1] = maximum(FFT_y)
 end
 
-display(plot(FreqList,Mags[:], yaxis=:log, xlabel="Frequency",ylabel="Drive Current"))
+semilogy(FreqList,Mags[:])
+xlabel("Frequency")
+ylabel("Drive Current")
+
 MaxCurrent = Base.maximum(Mags[:])
 println("Max amp per volt is $MaxCurrent")
 end
@@ -239,7 +242,7 @@ function PlotPhasor(
         end
         PrevImpedance = NewImp
     end
-    arrow(real(NewImp)-dx,imag(NewImp)-dy,dx,dy,head_width=HeadWidth,fc="gray",ec="k",alpha=1.,width = 0.00001,head_length= 2*HeadWidth)
+    # arrow(real(NewImp)-dx,imag(NewImp)-dy,dx,dy,head_width=HeadWidth,fc="gray",ec="k",alpha=1.,width = 0.00001,head_length= 2*HeadWidth)
 
     xlabel("Real")
     ylabel("Imag.")

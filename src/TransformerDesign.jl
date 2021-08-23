@@ -1,4 +1,3 @@
-using Plots
 using Optim
 
 function CalcFlux(Ae,Le,μr,N,V,ω)
