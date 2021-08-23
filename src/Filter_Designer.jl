@@ -5,6 +5,38 @@ using ACME
 using ElectricalEngineering
 include("ToroidOptimizer.jl")
 
+
+"""
+This function takes in  the following parameters:
+
+    LDrive, drive coil inductance (H)
+
+    RDrive, Drive coil resistance (Ω)
+
+    TargetZ, Amplifier/target impedance to match to  (Ω)
+
+    DriveFreq; drive frequency (Hz)
+
+    CDrive = 1e6, Any series capacitance with drive coil
+
+    NumDriveElements = 1, The number of series copies of the L,C,R for example if there are 6 pancakes of LDrive, RDrive, Cdrive, then this would be 6
+
+    WireDiam = 2e-3, Wire diameter for toroids
+
+    WireFillFac = 0.75, If litz wire, this is the ratio of copper to air
+
+    Example (Copy/paste):
+    RDrive = 400e-3
+    LDrive = 400e-6
+    Amp_Z = 4
+    DriveFreq = 25e3
+
+    DesignDriveFilter(LDrive,RDrive,Amp_Z,DriveFreq)
+
+
+
+
+"""
 function DesignDriveFilter(
     LDrive,
     RDrive,
@@ -22,6 +54,8 @@ function DesignDriveFilter(
     #DriveFreq is the drive frequency in hertz
     #CDrive is the SERIES capacitance, it defaults to 1e6 Farads (zero impedance at AC)
     #NumDriveElements is if there are multiple series repeated drive coil elements e.g. 2 drive assembles
+
+    ZeroVal = 1e-12
     ωDr = 2 * pi * DriveFreq
     ZDrive =
         RDrive * NumDriveElements +
@@ -40,14 +74,7 @@ function DesignDriveFilter(
         println(
             "Load appears to be a inductor with a value of $(round(EquivSerL*1e6;sigdigits=3))μH and a ESR of $(real(ZDrive))Ω ",
         )
-        # EquivRealImp(CPar) = abs.(real(Par(ZDrive,Z_Cap(CPar,DriveFreq))-TargetZ))
-        # CParOptim = optimize(EquivRealImp,1e-12,1e-4)
-        # CParAct = CParOptim.minimizer
-        # LTee_2 = 0
-        # LTee_2_ESR = 0
-        # LTee_1 = abs(imag(Par(ZDrive,Z_Cap(CParAct,DriveFreq))))/ωDr
-        # LTee_1_Geom = ToroidOptimizer(WireDiam,LTee_1;CuFillFactor = WireFillFac)
-        # LTee_1_ESR = LTee_1_Geom.DCore.Resistance
+
         matchRatio = real(TargetZ) / real(ZDrive)
         Q = sqrt(matchRatio - 1)
         Xs = Q * real(ZDrive) #Target reactance
@@ -55,10 +82,10 @@ function DesignDriveFilter(
         X_SerCap = Reactance_Load - Xs #Reactance of series capacitor
         SerCap = 1 / (ωDr * X_SerCap) #Series Capacitor value
         CParAct = Q / (ωDr * TargetZ)
-        LTee_2 = 0
-        LTee_2_ESR = 0
-        LTee_1 = 0
-        LTee_1_ESR = 0
+        LTee_2 = ZeroVal
+        LTee_2_ESR = ZeroVal
+        LTee_1 = ZeroVal
+        LTee_1_ESR = ZeroVal
 
 
     elseif (Reactance_Load < 0)
@@ -80,20 +107,20 @@ function DesignDriveFilter(
             ToroidOptimizer(WireDiam, LTee_2; CuFillFactor = WireFillFac)
         LTee_2_ESR = LTee_2_Geom.DCore.Resistance
         println("Q = $Q")
-        SerCap = 0
+        SerCap = ZeroVal
     elseif (Reactance_Load == 0)
         matchRatio = real(TargetZ) / real(ZDrive)
         Q = sqrt(matchRatio - 1)
         Xs = Q * real(ZDrive)
         LSer2 = Xs / (ωDr)
         LTee_2 = LSer2
-        LTee_1 = 0
-        LTee_1_ESR = 0
+        LTee_1 = ZeroVal
+        LTee_1_ESR = ZeroVal
         CParAct = findResPair((1 + Q^(-2)) * LSer2, DriveFreq)
         LTee_2_Geom =
             ToroidOptimizer(WireDiam, LTee_2; CuFillFactor = WireFillFac)
         LTee_2_ESR = LTee_2_Geom.DCore.Resistance
-        SerCap = 0
+        SerCap = ZeroVal
     end
     println("L Tee 1 =  $(round(LTee_1*1e6;sigdigits=3))μH ")
     println("L Tee 2 =  $(round(LTee_2*1e6;sigdigits=3))μH ")
@@ -115,7 +142,8 @@ function DesignDriveFilter(
         rs = resistor(TargetZ)
         ESR = resistor(RDrive)
         ESL = inductor(NumDriveElements * LDrive)
-        ESC = capacitor((CDrive + SerCap) / NumDriveElements)
+        ESC = capacitor(CDrive / NumDriveElements)
+        MatchCSer = capacitor(SerCap)
         LTee_2_mod = inductor(LTee_2)
         LTee_2_ESRmod = resistor(LTee_2_ESR)
         LTee_1_mod = inductor(LTee_1)
@@ -138,10 +166,11 @@ function DesignDriveFilter(
         LTee_1_mod[2] ⟷ LTee_1_ESRmod[1]
         LTee_1_ESRmod[2] ⟷ CParAct_mod[1]
         CParAct_mod[2] ⟷ gnd
-        LTee_1_mod[2] ⟷ LTee_2_mod[1]
+        LTee_1_ESRmod[2] ⟷ LTee_2_mod[1]
         LTee_2_mod[2] ⟷ LTee_2_ESRmod[1]
         LTee_2_ESRmod[2] ⟷ ESC[1]
-        ESC[2] ⟷ ESL[1]
+        ESC[2] ⟷ MatchCSer[1]
+        MatchCSer[2] ⟷ ESL[1]
         ESL[2] ⟷ ESR[1]
         ESR[2] ⟷ i_out[+]
         i_out[-] ⟷ gnd
@@ -174,18 +203,27 @@ function DesignDriveFilter(
     xlabel("Frequency")
     ylabel("Drive Current")
 
-    MaxCurrent = Base.maximum(Mags[:])
-    println("Max amp per volt is $MaxCurrent")
+    MaxCurrent = maximum(Mags[:])
+    println("Max amp per volt is $(round(MaxCurrent,sigdigits=3))")
 end
 
 function Par(Z1, Z2)
     return 1 / (1 / Z1 + 1 / Z2)
 end
 
+"""
+Converts from a polar coordinate (Mag, phase) to cartesian
+if you enter a tuple or array it assumes first is mag.
+
+"""
 function Polar2Cart(Mag, Phase)
     Real = real.(Mag * exp(-im * Phase / 360 * 2 * pi))
     Imag = imag.(Mag * exp(-im * Phase / 360 * 2 * pi))
     return (Real, Imag)
+end
+
+function Polar2Cart(MagPhaseTup::Union{Tuple, Array})
+    Polar2Cart(MagPhaseTup[1], MagPhaseTup[2])
 end
 
 function Z_Cap(C, f)
@@ -195,6 +233,12 @@ function Z_Ind(L, f)
     return im * 2 * pi .* f .* L
 end
 
+
+"""
+This function takes in some reactance element (E) and a frequency, and finds the pair
+
+
+"""
 function findResPair(E, f)
     ##Finds the resonant pair for a reactive element, E
     ## ωL = 1/(ωC) → L = 1/(ω^2C),and vice versa
@@ -280,7 +324,23 @@ function PlotPhasor(
 end
 
 
+"""
+This function takes in an array of tuples structures such as:
 
+    [(<Complex impedance #1> , <"series" or "Parallel">),
+    (<Complex impedance #2> , <"series" or "Parallel">)
+    .
+    .
+    .
+    (<Complex impedance #n> , <"series" or "Parallel">)]
+
+    e.g.
+
+    ZList = [(1+1*im, "series"),
+             (1+5*im, "series"),
+             (5+1*im, "parallel"),]
+    PlotImpedanceTransformList(ZList)
+"""
 function PlotImpedanceTransformList(ImpList; InitialImp = nothing, ArrHeadWidth =1)
     ColorList = ["r", "g", "b", "magenta", "teal"]
     L = zeros(length(ImpList))

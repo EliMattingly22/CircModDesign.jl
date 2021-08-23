@@ -4,14 +4,22 @@ using Interpolations
 
 """
 Equations utilized are from Terman, 1943 Radio Engineers' Handbook
+
 StrandDiam - Strand diameter (m) if one conductor is used, this is the conductor thickness
+
 CoilTurns
+
 CoilLength -Axial length of the coil (m)
+
 CoilDiam - Diameter of the full solenoid (mean for elliptical ones)
+
 NumStrands (default= 1) - Number of strands
+
 BundleDiam (default= StrandDiam)
+
 ;
 f = 1:1000:1e6, Test freuencies
+
 PlotOn=true
 """
 function LitzWire_ACRes(
