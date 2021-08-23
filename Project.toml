@@ -3,15 +3,6 @@ uuid = "19f57439-1cb0-4d36-9335-a15a76ba1aac"
 authors = ["Eli Mattingly"]
 version = "0.1.0"
 
-[compat]
-julia = "1.5"
-
-[extras]
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-
-[targets]
-test = ["Test"]
-
 [deps]
 ACME = "ca8b7239-ccd3-5cce-807f-2072f3f0d108"
 Elliptic = "b305315f-e792-5b7a-8f41-49f472929428"
@@ -19,3 +10,13 @@ FFTW = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
 MPI_Tools = "97d903a3-cacc-4b79-8a19-43190c4af4ff"
 Optim = "429524aa-4258-5aef-a3af-852621145aeb"
 PyPlot = "d330b81b-6aea-500a-939a-2ce795aea3ee"
+
+[compat]
+Elliptic = "1"
+julia = "1.5"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
