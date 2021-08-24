@@ -231,7 +231,7 @@ dr (kwarg) is the dr between each sampled location
 
 
 """
-function DCoreGeom(r₁, r₂; dr = 0.0001)
+function DCoreGeom(r₁, r₂; dr = 0.0001,PlotOn=false)
     dZdr(r) = log.(sqrt(r₁ * r₂) ./ r) ./ sqrt.(log.(r ./ r₁) .* log.(r₂ ./ r))
     rᵢ = r₁ + dr / 10#starting at a small fraction above zero, to avoid an inf.
     r = [rᵢ]
@@ -258,15 +258,50 @@ function DCoreGeom(r₁, r₂; dr = 0.0001)
     end
     z = vcat(z[:],-1 .*reverse(z[2:end-2]))
     r = vcat(r[:],reverse(r[2:end-2]))
-    plot(r, z)
+    if PlotOn
+        plot(r, z)
+    end
     return r, z
 end
 
 
 function FieldMapDToroid(r₁, r₂; dr = (r₂-r₁)/100, TestLayers = 20)
 
-    r, z = DCoreGeom(r₁, r₂; dr =dr)
+    r, z = DCoreGeom(r₁, r₂; dr =dr,PlotOn=false)
     PointPathZeros = zeros(size(r))
     PointPath = hcat(r,z,PointPathZeros)
     FieldMapPointPath(PointPath, TestLayers; WeightRadius = true, InvWeights = true)
+end
+
+
+
+"""
+RectCoords=[ 1   2.5 0
+         5   2.5 0
+         5  -2.5 0
+         1  -2.5 0]
+
+         Dr₁ = 1
+         Dr₂ = 5
+
+         Cr₁ = 2
+         Cr₂ = 2
+         CircCenter = [3,0,0]
+         CompareD_Circ_Rect_Toroid(Dr₁, Dr₂,RectCoords,Cr₁, Cr₂,CircCenter,20)
+
+"""
+function CompareD_Circ_Rect_Toroid(Dr₁, Dr₂,RectCoords,Cr₁, Cr₂,CircCenter,TestLayers = 20)
+    figure(75)
+    FieldMapDToroid(Dr₁,Dr₂)
+
+
+    figure(76)
+    R_PointPath = MakeRectPointPath(Coords;NElement = 50, PlotOn=false)
+    FieldMapPointPath(R_PointPath, 20; WeightRadius = true,InvWeights = true)
+
+     figure(77)
+    C_PointPath = MakeEllip(Cr₁,Cr₂;Center = CircCenter,NPts=100)
+    C_PointPath = reverse(C_PointPath,dims=1)
+FieldMapPointPath(C_PointPath, 20; WeightRadius = true,InvWeights = true)
+
 end

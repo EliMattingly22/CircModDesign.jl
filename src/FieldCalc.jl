@@ -23,7 +23,11 @@ function BiotSav(PointPath,r;Current=1,MinThreshold = 0.01)
             RDist = sqrt(sum(Rprime.^2))
             R̂ = Rprime/RDist
 
-                dB[I-1,:] = μ₀/(4*π) .* Current.*LinearAlgebra.cross(dL,R̂[:]) ./ (RDist)^2
+                if Current isa AbstractArray
+                    dB[I-1,:] = μ₀/(4*π) .* Current[I].*LinearAlgebra.cross(dL,R̂[:]) ./ (RDist)^2
+                else
+                    dB[I-1,:] = μ₀/(4*π) .* Current.*LinearAlgebra.cross(dL,R̂[:]) ./ (RDist)^2
+                end
 
         end
     else
@@ -104,15 +108,17 @@ NumLayers - number of interior test points
      TPList = hcat(xTP,yTP,zeros(size(yTP)))
      TP_Arr =[([TPList[i,1],TPList[i,2],TPList[i,3]]) for i in 1:length(xTP)]
      if WeightRadius
-         Weights = xTP
+         Weights = PointPath[:,1]
      else
-          Weights = ones(size(xTP))
+          Weights = ones(size( PointPath[:,1]))
       end
       if InvWeights
           Weights = 1 ./Weights
       end
-     BMag = [BiotSav(PointPath,TP_Arr[i];Current = Weights[i],MinThreshold =1e-8)[3] for i in 1:length(TP_Arr)]
+      push!(Weights,Weights[1])
+     BMag = [BiotSav(PointPath,TP_Arr[i];Current = Weights,MinThreshold =1e-8)[3] for i in 1:length(TP_Arr)]
 
+     BMag = abs.(BMag)
 
      BPlot = findall(xx-> xx!=0,BMag)
      surf(xTP[BPlot],yTP[BPlot],BMag[BPlot],cmap="jet")
@@ -143,11 +149,11 @@ function MakeRectPointPath(Coords;NElement = 50, PlotOn=false)
     zVecUp = [Coords[1,3]]
     for i in 1:(length(xVec)-1)
         UpSamp = LinRange(xVec[i],xVec[i+1],NElement)[:]
-        xVecUp = vcat(xVecUp,UpSamp,Coords[i,1])
+        xVecUp = vcat(xVecUp,UpSamp,Coords[i+1,1])
         UpSampy = LinRange(yVec[i],yVec[i+1],NElement)[:]
-        yVecUp = vcat(yVecUp,UpSampy,Coords[i,2])
+        yVecUp = vcat(yVecUp,UpSampy,Coords[i+1,2])
         UpSampz = LinRange(zVec[i],zVec[i+1],NElement)[:]
-        zVecUp = vcat(zVecUp,UpSampz,Coords[i,3])
+        zVecUp = vcat(zVecUp,UpSampz,Coords[i+1,3])
     end
 PointPath = hcat(xVecUp,yVecUp,zVecUp)
 if PlotOn
