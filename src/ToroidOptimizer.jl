@@ -263,39 +263,10 @@ function DCoreGeom(r₁, r₂; dr = 0.0001)
 end
 
 
-
 function FieldMapDToroid(r₁, r₂; dr = (r₂-r₁)/100, TestLayers = 20)
 
     r, z = DCoreGeom(r₁, r₂; dr =dr)
     PointPathZeros = zeros(size(r))
     PointPath = hcat(r,z,PointPathZeros)
     FieldMapPointPath(PointPath, TestLayers)
-end
-
-function FieldMapPointPath(PointPath, NumLayers)
-
-    xTP = PointPath[:,1]
-    x   = PointPath[:,1]
-    yTP = PointPath[:,2]
-    y   = PointPath[:,2]
-    x₁ = minimum(xTP)
-    x₂ = maximum(xTP)
-    y₁ = minimum(yTP)
-    y₂ = maximum(yTP)
-    xmid = (x₁+ x₂)/2
-    ymid = (y₁+ y₂)/2
-    for i in 1:(TestLayers-2)
-        xTP = vcat(xTP,(x .- xmid) .* (i/TestLayers) .+ xmid)
-        yTP = vcat(yTP,(y .- ymid) .* (i/TestLayers) .+ ymid)
-    end
-    TPList = hcat(xTP,yTP,zeros(size(yTP)))
-    TP_Arr =[([TPList[i,1],TPList[i,2],TPList[i,3]]) for i in 1:length(rTP)]
-
-    BMag = [BiotSav(PointPath,TP;MinThreshold =1e-8)[3] for TP in TP_Arr]
-
-
-    BPlot = findall(x-> x!=0,BMag)
-    surf(xTP[ZPlot],yTP[ZPlot],BMag[BPlot],cmap="jet")
-
-
 end
