@@ -268,5 +268,5 @@ function FieldMapDToroid(r₁, r₂; dr = (r₂-r₁)/100, TestLayers = 20)
     r, z = DCoreGeom(r₁, r₂; dr =dr)
     PointPathZeros = zeros(size(r))
     PointPath = hcat(r,z,PointPathZeros)
-    FieldMapPointPath(PointPath, TestLayers)
+    FieldMapPointPath(PointPath, TestLayers; WeightRadius = true, InvWeights = true)
 end

@@ -73,6 +73,7 @@ function MakeEllipTestPoints(r₁,r₂;Center = [0,0,0],NPts=6,Layers = 3)
      return X,Y,Z
  end
 
+
 """
 This function takes in a pointpath [X,Y,Z] array and maps the interior
 
@@ -81,7 +82,7 @@ PointPath [X,Y,Z] , N x 3 array
 NumLayers - number of interior test points
 
 """
- function FieldMapPointPath(PointPath, NumLayers)
+ function FieldMapPointPath(PointPath, NumLayers; WeightRadius = false,InvWeights = false)
 
      xTP = PointPath[:,1]
      x   = PointPath[:,1]
@@ -93,17 +94,27 @@ NumLayers - number of interior test points
      y₂ = maximum(yTP)
      xmid = (x₁+ x₂)/2
      ymid = (y₁+ y₂)/2
-     for i in 1:(TestLayers-2)
-         xTP = vcat(xTP,(x .- xmid) .* (i/TestLayers) .+ xmid)
-         yTP = vcat(yTP,(y .- ymid) .* (i/TestLayers) .+ ymid)
+
+
+
+     for i in 1:(NumLayers-2)
+         xTP = vcat(xTP,(x .- xmid) .* (i/NumLayers) .+ xmid)
+         yTP = vcat(yTP,(y .- ymid) .* (i/NumLayers) .+ ymid)
      end
      TPList = hcat(xTP,yTP,zeros(size(yTP)))
-     TP_Arr =[([TPList[i,1],TPList[i,2],TPList[i,3]]) for i in 1:length(rTP)]
+     TP_Arr =[([TPList[i,1],TPList[i,2],TPList[i,3]]) for i in 1:length(xTP)]
+     if WeightRadius
+         Weights = xTP
+     else
+          Weights = ones(size(xTP))
+      end
+      if InvWeights
+          Weights = 1 ./Weights
+      end
+     BMag = [BiotSav(PointPath,TP_Arr[i];Current = Weights[i],MinThreshold =1e-8)[3] for i in 1:length(TP_Arr)]
 
-     BMag = [BiotSav(PointPath,TP;MinThreshold =1e-8)[3] for TP in TP_Arr]
 
-
-     BPlot = findall(x-> x!=0,BMag)
+     BPlot = findall(xx-> xx!=0,BMag)
      surf(xTP[BPlot],yTP[BPlot],BMag[BPlot],cmap="jet")
 
 
@@ -117,19 +128,19 @@ Makes a point path for the BiotSav function
     ..
     xₙ, yₙ, zₙ]
 
-Coords = [0 0 0
-          1 0 0
-          1 1 0
-          0 1 0]
+Coords = [1 0 0
+          2 0 0
+          2 1 0
+          1 1 0]
 """
 function MakeRectPointPath(Coords;NElement = 50, PlotOn=false)
     Coords = vcat(Coords, reshape(Coords[1,:],1,3))
     xVec = Coords[:,1]
     yVec = Coords[:,2]
     zVec = Coords[:,3]
-    xVecUp = [Coords[i,1]]
-    yVecUp = [Coords[i,2]]
-    zVecUp = [Coords[i,3]]
+    xVecUp = [Coords[1,1]]
+    yVecUp = [Coords[1,2]]
+    zVecUp = [Coords[1,3]]
     for i in 1:(length(xVec)-1)
         UpSamp = LinRange(xVec[i],xVec[i+1],NElement)[:]
         xVecUp = vcat(xVecUp,UpSamp,Coords[i,1])
