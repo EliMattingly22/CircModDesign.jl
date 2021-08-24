@@ -207,8 +207,25 @@ function DesignDriveFilter(
     println("Max amp per volt is $(round(MaxCurrent,sigdigits=3))")
 end
 
+"""
+
+Calculates parallel impedances.
+If given two inputs, it assumes both are inputs
+If given an array, it takes the parallel combo of it all
+
+Eg.
+ZList = [1 + 1*im, 1]
+Par(ZList[1], ZList[2])
+Par(ZList)
+"""
 function Par(Z1, Z2)
     return 1 / (1 / Z1 + 1 / Z2)
+end
+function Par(Z::Array)
+    Y = 1 ./Z
+    YTotal = sum(Y)
+    Zeff = 1/YTotal
+    return Zeff
 end
 
 """
