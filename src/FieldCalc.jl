@@ -2,6 +2,7 @@
 using LinearAlgebra
 using PyPlot
 using MPI_Tools
+using Interpolations
 
 VecDist(X::Array) = [ X[2,1]-X[1,1], X[2,2]-X[1,2] , X[2,3]-X[1,3]]
 #X is the 2 coordinates to take distance between in format of [x₁,y₁,z₁;x₂,y₂,z₂]
@@ -71,3 +72,76 @@ function MakeEllipTestPoints(r₁,r₂;Center = [0,0,0],NPts=6,Layers = 3)
      end
      return X,Y,Z
  end
+
+"""
+This function takes in a pointpath [X,Y,Z] array and maps the interior
+
+Inputs are
+PointPath [X,Y,Z] , N x 3 array
+NumLayers - number of interior test points
+
+"""
+ function FieldMapPointPath(PointPath, NumLayers)
+
+     xTP = PointPath[:,1]
+     x   = PointPath[:,1]
+     yTP = PointPath[:,2]
+     y   = PointPath[:,2]
+     x₁ = minimum(xTP)
+     x₂ = maximum(xTP)
+     y₁ = minimum(yTP)
+     y₂ = maximum(yTP)
+     xmid = (x₁+ x₂)/2
+     ymid = (y₁+ y₂)/2
+     for i in 1:(TestLayers-2)
+         xTP = vcat(xTP,(x .- xmid) .* (i/TestLayers) .+ xmid)
+         yTP = vcat(yTP,(y .- ymid) .* (i/TestLayers) .+ ymid)
+     end
+     TPList = hcat(xTP,yTP,zeros(size(yTP)))
+     TP_Arr =[([TPList[i,1],TPList[i,2],TPList[i,3]]) for i in 1:length(rTP)]
+
+     BMag = [BiotSav(PointPath,TP;MinThreshold =1e-8)[3] for TP in TP_Arr]
+
+
+     BPlot = findall(x-> x!=0,BMag)
+     surf(xTP[BPlot],yTP[BPlot],BMag[BPlot],cmap="jet")
+
+
+ end
+
+"""
+Makes a point path for the BiotSav function
+    Input is an Nx3 array of coordinates where it is structured as:
+    [x₁, y₁, z₁
+    ..
+    ..
+    xₙ, yₙ, zₙ]
+
+Coords = [0 0 0
+          1 0 0
+          1 1 0
+          0 1 0]
+"""
+function MakeRectPointPath(Coords;NElement = 50, PlotOn=false)
+    Coords = vcat(Coords, reshape(Coords[1,:],1,3))
+    xVec = Coords[:,1]
+    yVec = Coords[:,2]
+    zVec = Coords[:,3]
+    xVecUp = [Coords[i,1]]
+    yVecUp = [Coords[i,2]]
+    zVecUp = [Coords[i,3]]
+    for i in 1:(length(xVec)-1)
+        UpSamp = LinRange(xVec[i],xVec[i+1],NElement)[:]
+        xVecUp = vcat(xVecUp,UpSamp,Coords[i,1])
+        UpSampy = LinRange(yVec[i],yVec[i+1],NElement)[:]
+        yVecUp = vcat(yVecUp,UpSampy,Coords[i,2])
+        UpSampz = LinRange(zVec[i],zVec[i+1],NElement)[:]
+        zVecUp = vcat(zVecUp,UpSampz,Coords[i,3])
+    end
+PointPath = hcat(xVecUp,yVecUp,zVecUp)
+if PlotOn
+    scatter3D(xVecUp,yVecUp,zVecUp)
+end
+    return PointPath
+
+end

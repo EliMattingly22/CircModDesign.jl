@@ -216,3 +216,86 @@ function Length2Resist(L, Diam; ρ = 1.68e-8, FillFac = 1)
     A = pi / 4 .* Diam .^ 2
     return L * ρ * FillFac / A
 end
+
+"""
+This function takes in an inner and outer radius and makes the ideal "D-shaped" toroid core
+
+It returns a list of coordinates (r,z) where r is the radial location
+on the toroid, and z is the height from the center axis. In a cross-section
+view this is essentially x and y.
+
+
+r₁ - inner radius
+r₂ - outer radius
+dr (kwarg) is the dr between each sampled location
+
+
+"""
+function DCoreGeom(r₁, r₂; dr = 0.0001)
+    dZdr(r) = log.(sqrt(r₁ * r₂) ./ r) ./ sqrt.(log.(r ./ r₁) .* log.(r₂ ./ r))
+    rᵢ = r₁ + dr / 10#starting at a small fraction above zero, to avoid an inf.
+    r = [rᵢ]
+    zᵢ = 0.0
+    z = [zᵢ] # initializing vector
+    II = 1 #iterator
+    NumIters = floor((r₂ - r₁) / dr)
+
+    while (NumIters > II)
+        dz = dZdr(rᵢ)
+        zᵢ +=dz*dr
+        rᵢ += dr
+
+        push!(z, zᵢ)
+        push!(r, rᵢ)
+        II += 1
+    end
+    z .-= z[end] #the boundary condition at the end must be fixed to equal 0
+    z[1] = 0 #because of the inf initial dz/dr, the initial boundary must be manually set to zero
+    StartPts = 10
+    for i in 1:StartPts
+        insert!(z,1+i,z[2+i]*i/StartPts)
+        insert!(r,1+i,r[1])
+    end
+    z = vcat(z[:],-1 .*reverse(z[2:end-2]))
+    r = vcat(r[:],reverse(r[2:end-2]))
+    plot(r, z)
+    return r, z
+end
+
+
+
+function FieldMapDToroid(r₁, r₂; dr = (r₂-r₁)/100, TestLayers = 20)
+
+    r, z = DCoreGeom(r₁, r₂; dr =dr)
+    PointPathZeros = zeros(size(r))
+    PointPath = hcat(r,z,PointPathZeros)
+    FieldMapPointPath(PointPath, TestLayers)
+end
+
+function FieldMapPointPath(PointPath, NumLayers)
+
+    xTP = PointPath[:,1]
+    x   = PointPath[:,1]
+    yTP = PointPath[:,2]
+    y   = PointPath[:,2]
+    x₁ = minimum(xTP)
+    x₂ = maximum(xTP)
+    y₁ = minimum(yTP)
+    y₂ = maximum(yTP)
+    xmid = (x₁+ x₂)/2
+    ymid = (y₁+ y₂)/2
+    for i in 1:(TestLayers-2)
+        xTP = vcat(xTP,(x .- xmid) .* (i/TestLayers) .+ xmid)
+        yTP = vcat(yTP,(y .- ymid) .* (i/TestLayers) .+ ymid)
+    end
+    TPList = hcat(xTP,yTP,zeros(size(yTP)))
+    TP_Arr =[([TPList[i,1],TPList[i,2],TPList[i,3]]) for i in 1:length(rTP)]
+
+    BMag = [BiotSav(PointPath,TP;MinThreshold =1e-8)[3] for TP in TP_Arr]
+
+
+    BPlot = findall(x-> x!=0,BMag)
+    surf(xTP[ZPlot],yTP[ZPlot],BMag[BPlot],cmap="jet")
+
+
+end
