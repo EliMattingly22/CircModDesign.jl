@@ -37,15 +37,15 @@ function CalcInductance(Coords)
     EValue = similar(RMesh)
 
     KVal, EValue = (
-        [ellipke.(f(R_List, Z_List) .^ 2)[i, j][1] for i = 1:L, j = 1:L],
-        [ellipke.(f(R_List, Z_List) .^ 2)[i, j][2] for i = 1:L, j = 1:L],
+        [ellipke.(fFunk(R_List, Z_List) .^ 2)[i, j][1] for i = 1:L, j = 1:L],
+        [ellipke.(fFunk(R_List, Z_List) .^ 2)[i, j][2] for i = 1:L, j = 1:L],
     )
 
 
     M =
         μ₀ .* sqrt.(RMesh .* AMesh) .* (
-            (2 .* (KVal .- EValue)) ./ f(R_List, Z_List) .-
-            f(R_List, Z_List) .* KVal
+            (2 .* (KVal .- EValue)) ./ fFunk(R_List, Z_List) .-
+            fFunk(R_List, Z_List) .* KVal
         ) #https://thompsonrd.com/OSEE-inductance.pdf
     TotalL = sum(M)
 
@@ -53,7 +53,7 @@ function CalcInductance(Coords)
     return TotalL
 end
 
-function f(r,z)
+function fFunk(r,z)
 
     RMesh, AMesh = MPI_Tools.meshgrid(r,dims=2)
     ZMesh_A, ZMesh_B = MPI_Tools.meshgrid(z,dims=2)

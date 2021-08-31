@@ -46,17 +46,14 @@ function DesignDriveFilter(
     NumDriveElements = 1,
     WireDiam = 2e-3,
     WireFillFac = 0.75,
+    PlotSrcR = TargetZ,
+    PlotFTs = false,
+    VSrc = 2
 )
-    ## This function takes in the drive coil impedances and designs a filter to match it to an amplifier
-    #LDrive is the drive coil inductance in Henries
-    #RDrive is the drive coil resistance (series) in Ohms
-    #TargetZ is the ideal source impedance
-    #DriveFreq is the drive frequency in hertz
-    #CDrive is the SERIES capacitance, it defaults to 1e6 Farads (zero impedance at AC)
-    #NumDriveElements is if there are multiple series repeated drive coil elements e.g. 2 drive assembles
+    
 
-    ZeroVal = 1e-12
-    ωDr = 2 * pi * DriveFreq
+    ZeroVal = 0 #Some cases I wanted to try having no zero circuit elements 
+    ωDr = 2 * π * DriveFreq
     ZDrive =
         RDrive * NumDriveElements +
         im * ωDr * LDrive * NumDriveElements +
@@ -65,23 +62,12 @@ function DesignDriveFilter(
     Reactance_Load =
         ωDr * LDrive * NumDriveElements - NumDriveElements ./ (ωDr * CDrive)
     Reactance_Load = round(Reactance_Load; sigdigits = 3)
-    println("The reactance of the load is: $Reactance_Load Ω")
+    println("The reactance of the load is: $(round(Reactance_Load;sigdigits=3)) Ω")
 
     if (Reactance_Load > 0)
 
-        println("Load is inductive")
-        EquivSerL = Reactance_Load / ωDr
-        println(
-            "Load appears to be a inductor with a value of $(round(EquivSerL*1e6;sigdigits=3))μH and a ESR of $(real(ZDrive))Ω ",
-        )
-
-        matchRatio = real(TargetZ) / real(ZDrive)
-        Q = sqrt(matchRatio - 1)
-        Xs = Q * real(ZDrive) #Target reactance
-
-        X_SerCap = Reactance_Load - Xs #Reactance of series capacitor
-        SerCap = 1 / (ωDr * X_SerCap) #Series Capacitor value
-        CParAct = Q / (ωDr * TargetZ)
+        SerCap,CParAct = ImpMatch_LLoad(TargetZ, ZDrive, Reactance_Load,ωDr)
+        
         LTee_2 = ZeroVal
         LTee_2_ESR = ZeroVal
         LTee_1 = ZeroVal
@@ -89,25 +75,13 @@ function DesignDriveFilter(
 
 
     elseif (Reactance_Load < 0)
-        println("Load is capacitive")
-        EquivSerC = abs.(1 / (Reactance_Load * ωDr))
-        println(
-            "Load appears to be a capacitor with a value of $(round(EquivSerC*1e6;sigdigits=3))μF and a ESR of $(real(ZDrive))Ω ",
-        )
-        LSer = abs.(Reactance_Load) / (ωDr)
-        matchRatio = real(TargetZ) / real(ZDrive)
-        Q = sqrt(matchRatio - 1)
-        Xs = Q * real(ZDrive)
-        LSer2 = Xs / (ωDr)
-        LTee_2 = LSer2 + LSer
-        LTee_1 = 0
-        LTee_1_ESR = 0
-        CParAct = findResPair((1 + Q^(-2)) * LSer2, DriveFreq)
-        LTee_2_Geom =
-            ToroidOptimizer(WireDiam, LTee_2; CuFillFactor = WireFillFac)
-        LTee_2_ESR = LTee_2_Geom.DCore.Resistance
-        println("Q = $Q")
+
+        LTee_2,LTee_2_ESR,CParAct = ImpMatch_CLoad(TargetZ, ZDrive, Reactance_Load,ωDr)
+
+        LTee_1 = ZeroVal
+        LTee_1_ESR = ZeroVal
         SerCap = ZeroVal
+        
     elseif (Reactance_Load == 0)
         matchRatio = real(TargetZ) / real(ZDrive)
         Q = sqrt(matchRatio - 1)
@@ -131,15 +105,67 @@ function DesignDriveFilter(
     (LFilt, CFilt) = Butterworth_2(TargetZ, DriveFreq)
     LFiltMatch_C = findResPair(LFilt, DriveFreq)
     CFiltMatch_L = findResPair(CFilt, DriveFreq)
+    
+    LFilt1_Geom =
+            ToroidOptimizer(WireDiam, LFilt; CuFillFactor = WireFillFac)
+    LFilt1_ESR = LFilt1_Geom.DCore.Resistance
+    
+    LFilt2_Geom =
+            ToroidOptimizer(WireDiam, CFiltMatch_L; CuFillFactor = WireFillFac)
+    LFilt2_ESR = LFilt2_Geom.DCore.Resistance
     println(
         "LFilt =  $(round(LFilt*1e6;sigdigits=3))μH matched with: LFiltMatch_C =  $(round(LFiltMatch_C*1e6;sigdigits=3))μF ",
     )
     println(
         "CFilt =  $(round(CFilt*1e6;sigdigits=3))μF matched with: CFiltMatch_L = $(round(CFiltMatch_L*1e6;sigdigits=3))μH ",
     )
+    AmpsPerVolt = CircModel_MatchingTFilt(DriveFreq, VSrc,
+    PlotSrcR,
+    RDrive,
+    NumDriveElements,
+    LDrive,
+    CDrive,
+    SerCap,
+    LTee_2,
+    LTee_2_ESR,
+    LTee_1,
+    LTee_1_ESR,
+    CParAct,
+    LFilt,
+    LFilt2_ESR,
+    LFilt1_ESR,
+    LFiltMatch_C,
+    CFilt,
+    CFiltMatch_L;
+    PlotOn = PlotFTs)
+end
+
+function CircModel_MatchingTFilt(DriveFreq, VSrc,
+    PlotSrcR,
+    RDrive,
+    NumDriveElements,
+    LDrive,
+    CDrive,
+    SerCap,
+    LTee_2,
+    LTee_2_ESR,
+    LTee_1,
+    LTee_1_ESR,
+    CParAct,
+    LFilt,
+    LFilt2_ESR,
+    LFilt1_ESR,
+    LFiltMatch_C,
+    CFilt,
+    CFiltMatch_L;
+    PlotOn = false
+
+)
+
+
     circ = @circuit begin
         j_in = voltagesource()
-        rs = resistor(TargetZ)
+        rs = resistor(PlotSrcR)
         ESR = resistor(RDrive)
         ESL = inductor(NumDriveElements * LDrive)
         ESC = capacitor(CDrive / NumDriveElements)
@@ -150,19 +176,30 @@ function DesignDriveFilter(
         LTee_1_ESRmod = resistor(LTee_1_ESR)
         CParAct_mod = capacitor(CParAct)
         LFilt_mod = inductor(LFilt)
+        LFiltESR_mod = resistor(LFilt1_ESR)
+        LFilt_mod2 = inductor(LFilt)
+        LFiltESR_mod2 = resistor(LFilt1_ESR)
+        LFiltMatch_C_mod2 = capacitor(LFiltMatch_C)
         CFilt_mod = capacitor(CFilt)
         CFiltMatch_L_mod = inductor(CFiltMatch_L)
+        LFilt2_ESR_mod = resistor(LFilt2_ESR)
         LFiltMatch_C_mod = capacitor(LFiltMatch_C)
         i_out = currentprobe()
+
         j_in[+] ⟷ rs[1] #\longleftrightarrow
         j_in[-] ⟷ gnd
-        rs[2] ⟷ LFilt_mod[1]
+        rs[2] ⟷ LFiltESR_mod[1]
+        LFiltESR_mod[2] ⟷ LFilt_mod[1]
         LFilt_mod[2] ⟷ LFiltMatch_C_mod[1]
         LFiltMatch_C_mod[2] ⟷ CFilt_mod[1]
         LFiltMatch_C_mod[2] ⟷ CFiltMatch_L_mod[1]
-        CFiltMatch_L_mod[2] ⟷ gnd
+        CFiltMatch_L_mod[2] ⟷ LFilt2_ESR_mod[1]
+        LFilt2_ESR_mod[2] ⟷ gnd
         CFilt_mod[2] ⟷ gnd
-        LFiltMatch_C_mod[2] ⟷ LTee_1_mod[1]
+        LFiltMatch_C_mod[2] ⟷ LFiltESR_mod2[1]
+        LFiltESR_mod2[2] ⟷ LFilt_mod2[1]
+        LFilt_mod2[2] ⟷ LFiltMatch_C_mod2[1]
+        LFiltMatch_C_mod2[2] ⟷ LTee_1_mod[1]
         LTee_1_mod[2] ⟷ LTee_1_ESRmod[1]
         LTee_1_ESRmod[2] ⟷ CParAct_mod[1]
         CParAct_mod[2] ⟷ gnd
@@ -189,7 +226,7 @@ function DesignDriveFilter(
         y = run!(
             model,
             [
-                2 .* sin(2π * F / fs_model * n) for c = 1:1,
+                VSrc .* sin(2π * F / fs_model * n) for c = 1:1,
                 n = 1:NumPeriods*fs_model/F
             ],
         )
@@ -199,14 +236,72 @@ function DesignDriveFilter(
         Mags[Int((F - FreqList[1]) / df)+1] = maximum(FFT_y)
     end
 
-    semilogy(FreqList, Mags[:])
-    xlabel("Frequency")
-    ylabel("Drive Current")
 
-    MaxCurrent = maximum(Mags[:])
-    println("Max amp per volt is $(round(MaxCurrent,sigdigits=3))")
+    y2 = run!(
+        model,
+        [
+            VSrc .* sin(2π * DriveFreq / fs_model * n) for c = 1:1,
+            n = 1:NumPeriods*fs_model/DriveFreq
+        ],
+    )
+    y2 = y2[:] .* WindowHanning(length(y2))[:]
+    FFT_y2 = abs.(fft(y2)) / length(y2) .* 4
+
+    AmpsPerVolt = maximum(FFT_y2)
+
+    if PlotOn
+        semilogy(FreqList, Mags[:])
+        xlabel("Frequency")
+        ylabel("Drive Current")
+    end
+    
+    println("Tx current per $VSrc Volts is $(round(AmpsPerVolt,sigdigits=3)) Amps")
+    return AmpsPerVolt
 end
 
+
+function ImpMatch_LLoad(TargetZ, ZDrive, Reactance_Load,ωDr)
+    println("Load is inductive")
+    EquivSerL = Reactance_Load / ωDr
+    println(
+        "Load appears to be a inductor with a value of $(round(EquivSerL*1e6;sigdigits=3))μH and a ESR of $(real(ZDrive))Ω ",
+    )
+
+    matchRatio = real(TargetZ) / real(ZDrive)
+    Q = sqrt(matchRatio - 1)
+    Xs = Q * real(ZDrive) #Target reactance
+
+    X_SerCap = Reactance_Load - Xs #Reactance of series capacitor
+    SerCap = 1 / (ωDr * X_SerCap) #Series Capacitor value
+    CParAct = Q / (ωDr * TargetZ)
+
+
+    return SerCap,CParAct
+
+end
+
+function ImpMatch_CLoad(TargetZ, ZDrive, Reactance_Load,ωDr)
+    println("Load is capacitive")
+        EquivSerC = abs.(1 / (Reactance_Load * ωDr))
+        println(
+            "Load appears to be a capacitor with a value of $(round(EquivSerC*1e6;sigdigits=3))μF and a ESR of $(real(ZDrive))Ω ",
+        )
+        LSer = abs.(Reactance_Load) / (ωDr)
+        matchRatio = real(TargetZ) / real(ZDrive)
+        Q = sqrt(matchRatio - 1)
+        Xs = Q * real(ZDrive)
+        LSer2 = Xs / (ωDr)
+        LTee_2 = LSer2 + LSer
+        
+        CParAct = findResPair((1 + Q^(-2)) * LSer2, DriveFreq)
+        LTee_2_Geom =
+            ToroidOptimizer(WireDiam, LTee_2; CuFillFactor = WireFillFac)
+        LTee_2_ESR = LTee_2_Geom.DCore.Resistance
+        println("Q = $Q")
+
+        return LTee_2,LTee_2_ESR,CParAct
+
+end
 """
 
 Calculates parallel impedances.
@@ -222,6 +317,40 @@ function Par(Z1, Z2)
     return 1 / (1 / Z1 + 1 / Z2)
 end
 function Par(Z::Array)
+    Y = 1 ./Z
+    YTotal = sum(Y)
+    Zeff = 1/YTotal
+    return Zeff
+end
+
+"""
+Parallel component lists
+Input is Array{Tuple{Number,String},1}
+e.g. 
+Freq = 25e3
+CompList = [(3, "R"),(30e-6, "L"),(200e-9,"C")]
+Par(CompList,Freq)
+
+"""
+function Par(C::Array{Tuple{Real,String},1},freq)
+    
+    Z = Complex.(zeros(length(C)))
+    for i in 1:length(C)
+        if (lowercase(C[i][2])=="r") | (lowercase(C[i][2])=="resistor")
+            Z[i] = C[i][1]
+        elseif (lowercase(C[i][2])=="l") | (lowercase(C[i][2])=="inductor" )
+            Z[i] = Z_Ind(C[i][1],freq)
+        elseif (lowercase(C[i][2])=="c") | (lowercase(C[i][2])=="capacitor" )
+            Z[i] = Z_Cap(C[i][1],freq)
+        elseif lowercase(C[i][2])=="z"
+            Z[i] = C[i][1]
+        else
+            error("Unknown component")
+        end
+
+    end
+
+    
     Y = 1 ./Z
     YTotal = sum(Y)
     Zeff = 1/YTotal
@@ -316,7 +445,7 @@ function PlotPhasor(
 
         dx = -(RealParts[2] - RealParts[1])
         dy = -(ImagParts[2] - ImagParts[1])
-        if Color != nothing
+        if Color !== nothing
 
 
 
@@ -367,7 +496,7 @@ function PlotImpedanceTransformList(ImpList; InitialImp = nothing, ArrHeadWidth 
     LongestVector = maximum(L)
     HeadWidth = LongestVector / ArrHeadWidth
     ##Impedance Plotting
-    if InitialImp != nothing
+    if InitialImp !== nothing
         PrevImp = InitialImp
         StartVal = 1
     else
@@ -394,7 +523,7 @@ function PlotImpedanceTransformList(ImpList; InitialImp = nothing, ArrHeadWidth 
     end
     LongestVector = maximum(L)
     HeadWidth = LongestVector / ArrHeadWidth
-    if InitialImp != nothing
+    if InitialImp !=0 nothing
         PrevImp = 1 / InitialImp
         StartVal = 1
     else

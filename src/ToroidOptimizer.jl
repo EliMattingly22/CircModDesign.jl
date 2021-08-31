@@ -1,3 +1,4 @@
+include("FieldCalc.jl")
 
 
 abstract type Toroid end
@@ -296,7 +297,7 @@ function CompareD_Circ_Rect_Toroid(Dr₁, Dr₂,RectCoords,Cr₁, Cr₂,CircCent
 
 
     figure(76)
-    R_PointPath = MakeRectPointPath(Coords;NElement = 50, PlotOn=false)
+    R_PointPath = MakeRectPointPath(RectCoords;NElement = 50, PlotOn=false)
     FieldMapPointPath(R_PointPath, 20; WeightRadius = true,InvWeights = true)
 
      figure(77)

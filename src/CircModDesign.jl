@@ -8,7 +8,7 @@ include("StrayCap.jl")
 include("LitzACResist.jl")
 include("InductanceCalc.jl")
 
-export PlotImpedanceTransformList,
+export  PlotImpedanceTransformList,
         BiotSav,
         MakeEllip,
         FieldOnAxis_Circ,
@@ -29,7 +29,9 @@ export PlotImpedanceTransformList,
         ThermalNoise,
         CL_DAE_Knight,
         ToroidOptimizer,
-        Length2Resist
+        Length2Resist,
+        FieldMapPointPath,
+        CompareD_Circ_Rect_Toroid
 
 
 # Write your package code here.

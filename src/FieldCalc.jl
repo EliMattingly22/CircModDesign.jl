@@ -7,7 +7,17 @@ using Interpolations
 VecDist(X::Array) = [ X[2,1]-X[1,1], X[2,2]-X[1,2] , X[2,3]-X[1,3]]
 #X is the 2 coordinates to take distance between in format of [x₁,y₁,z₁;x₂,y₂,z₂]
 
+"""
+This function takes in:
+    "Point Path" which is an Nx3 set of coordinates that define a current loop
+    "r" which is a 1x3 vector that is a point in space to evaluate the 3D B field at
 
+    kwargs:
+        "current" is a scalar multiplier. Default is 1 Amp 
+        "MinThreshold" is a minimum distance that the "r" point must be from any wire
+            The function tends to inf near wires
+
+"""
 function BiotSav(PointPath,r;Current=1,MinThreshold = 0.01)
     PointPath = vcat(PointPath,PointPath[1,:]')
     NPts = length(PointPath[:,1])
@@ -36,7 +46,14 @@ function BiotSav(PointPath,r;Current=1,MinThreshold = 0.01)
     sum(dB,dims=1)
 end
 
+"""
+Makes a point path of an ellipse with r₁,r₂ as two radii
+normal direction is assumed to be in Z
+kwargs: Center is the center of path [X,Y,Z]
+NPts is the number of points along path
 
+
+"""
 function MakeEllip(r₁,r₂;Center = [0,0,0],NPts=100)
     X,Y,Z = ([r₁ .* cos.(I/NPts *2*π) for I in 1:NPts].+Center[1],
              [r₂ .* sin.(I/NPts *2*π) for I in 1:NPts].+Center[2],
@@ -45,6 +62,16 @@ function MakeEllip(r₁,r₂;Center = [0,0,0],NPts=100)
 
 end
 
+
+"""
+Simple analytical formula for the field on axis of a Circle
+    R - radius in meters
+    z - axial offset in meters
+    
+    kwargs:
+        I = current in coil
+
+"""
 function FieldOnAxis_Circ(R,z;I=1)
     Bz = μ₀*2*pi*R^2*I ./ (4*π* (z^2 + R^2)^(3/2))
 end
@@ -86,7 +113,7 @@ PointPath [X,Y,Z] , N x 3 array
 NumLayers - number of interior test points
 
 """
- function FieldMapPointPath(PointPath, NumLayers; WeightRadius = false,InvWeights = false)
+ function FieldMapPointPath(PointPath, NumLayers; WeightRadius = false,InvWeights = false, PlotAxes = nothing)
 
      xTP = PointPath[:,1]
      x   = PointPath[:,1]
@@ -121,6 +148,10 @@ NumLayers - number of interior test points
      BMag = abs.(BMag)
 
      BPlot = findall(xx-> xx!=0,BMag)
+     if PlotAxes!== nothing
+        PyPlot.axes(PlotAxes)
+     end
+
      surf(xTP[BPlot],yTP[BPlot],BMag[BPlot],cmap="jet")
 
 
@@ -155,10 +186,10 @@ function MakeRectPointPath(Coords;NElement = 50, PlotOn=false)
         UpSampz = LinRange(zVec[i],zVec[i+1],NElement)[:]
         zVecUp = vcat(zVecUp,UpSampz,Coords[i+1,3])
     end
-PointPath = hcat(xVecUp,yVecUp,zVecUp)
-if PlotOn
-    scatter3D(xVecUp,yVecUp,zVecUp)
-end
+    PointPath = hcat(xVecUp,yVecUp,zVecUp)
+    if PlotOn
+        scatter3D(xVecUp,yVecUp,zVecUp)
+    end
     return PointPath
 
 end
