@@ -67,7 +67,7 @@ function DesignDriveFilter(
     if (Reactance_Load > 0)
 
         SerCap,CParAct = ImpMatch_LLoad(TargetZ, ZDrive, Reactance_Load,ωDr)
-        
+
         LTee_2 = ZeroVal
         LTee_2_ESR = ZeroVal
         LTee_1 = ZeroVal
@@ -216,7 +216,7 @@ function CircModel_MatchingTFilt(DriveFreq, VSrc,
     fs_model = 1e6
     model = DiscreteModel(circ, 1 / fs_model)
     FreqList = 1000:100:100e3
-    NumPeriods = 100
+    NumPeriods = 1000
     df = FreqList[2] - FreqList[1]
     Mags = zeros(length(FreqList), 1)
     WindowHanning(N) =
@@ -253,6 +253,7 @@ function CircModel_MatchingTFilt(DriveFreq, VSrc,
         semilogy(FreqList, Mags[:])
         xlabel("Frequency")
         ylabel("Drive Current")
+        semilogy(DriveFreq, AmpsPerVolt,"r*")
     end
     
     println("Tx current per $VSrc Volts is $(round(AmpsPerVolt,sigdigits=3)) Amps")

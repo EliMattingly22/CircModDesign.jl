@@ -18,7 +18,7 @@ function CalcPermeability(AL,Ae,Le)
     return AL*Le/Ae/μ0
 end
 
-function BMax(V,f,N,A;k=4.44)
+function BMax(V,f,N,A;k=(2*π/√2))
     return V ./ (k.*N.*A.*f)
 end
 

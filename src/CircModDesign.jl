@@ -7,6 +7,7 @@ include("TransformerDesign.jl")
 include("StrayCap.jl")
 include("LitzACResist.jl")
 include("InductanceCalc.jl")
+include("MakeSolenoid.jl")
 
 export  PlotImpedanceTransformList,
         BiotSav,

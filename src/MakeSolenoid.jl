@@ -1,5 +1,8 @@
 using LinearAlgebra
-
+include("FieldCalc.jl")
+include("LitzACResist.jl")
+include("StrayCap.jl")
+include("InductanceCalc.jl")
 """
 This function makes an elliptic solenoid and calculates the inductance, capacitance, and resistance
     The inputs are:
@@ -21,13 +24,12 @@ function MakeEllipSolenoid(
     StrandDiam = 0.3e-3,
     InsDiam = 0.9*1e-3,
     ϵr_ins = 4,
-    NPts_Coil = 100,
+    NumStrands = 1,
+    BundleDiam = StrandDiam)
 
-)
 
-##
-FieldCentered = EvalField_Centered(N,r₁,r₂,L)
-##
+    FieldCentered = EvalField_Centered(N,r₁,r₂,L)
+
 
     MeanRad = (r₁ + r₂) / 2
     # ZCoord = [(wind_num - 1) / N * L for wind_num = 1:N]
@@ -35,33 +37,28 @@ FieldCentered = EvalField_Centered(N,r₁,r₂,L)
     # Coords = hcat(RCoords[:], ZCoord[:])
     # L_Coil = CalcInductance(Coords)
     L_Coil = SimpleInduct(N,MeanRad,L)
-    C_Coil =
-        Ceq(2 * MeanRad, StrandDiam / 2, L / N, InsDiam / 2, ϵr_ins) / N * 3
-    #D - solenoid diameter in meters
-    #r - wire radius
-    #p - pitch in meters
-    #t - wire insulation thickness
-    #ϵr - insulation relative permittivity
+    C_Coil = CL_DAE_Knight(
+        L, #Coil length (axial)
+        InsDiam, #Coil diamter
+        N, #N turns
+        ϵr_ins, #external permittivity
+        ϵr_ins) #Internal permittivity
     SRF = 1 / (2 * π * sqrt(L_Coil * C_Coil))
 
-    CoilProps, Rac_Straight, Rac_Coiled, SkinDepth =
-        LitzWire_ACRes_CalcFunk(StrandDiam, N, L, MeanRad * 2; f = [100e3 1e6])
+    CoilProps, Rac, SkinDepth = LitzWire_ACRes(
+        StrandDiam,
+        N,
+        L,
+        MeanRad,
+        NumStrands,
+        BundleDiam;
+        f = 75e3:1000:125e3,
+        PlotOn=false)
 
 
-
-    return L_Coil, C_Coil, SRF, DefField, X, Y, Z
+    return L_Coil, C_Coil, SRF, FieldCentered,Rac
 end
 
-# 
-# Field3D =DefField
-# IndNum = 2
-# Xs = X[IndNum, :, :]
-# Ys = Y[IndNum, :, :]
-# Zs = Z[IndNum, :, :]
-# FieldSlice = sum(Field3D, dims = 4)[IndNum, :, :]
-#
-# pcolormesh( FieldSlice)
-# X,Y = MPI_Tools.meshgrid(x,y)
 
 
 function LfromΦMat(ΦMat)
@@ -105,8 +102,8 @@ function EvalInduct_Biot(
     r₁, #Radius 1 of ellipse
     r₂,#Radius 2 of ellipse
     L; #Length of solenoid in meters
-    MeasLayers = 55#Number of concentric layers to calc field
-    PtsPerLayer =  6
+    MeasLayers = 55,#Number of concentric layers to calc field
+    PtsPerLayer =  6,
     NPts_Coil = 500
     )
 
@@ -116,9 +113,7 @@ function EvalInduct_Biot(
     NPtsPerSlice = MeasLayers*PtsPerLayer
     for wind_num in 1:N
         A_All[:,1,wind_num],A_All[:,2,wind_num],A_All[:,3,wind_num]  =
-         MakeEllipTestPoints(r₁,r₂;Center = [0,0,(wind_num - 1) / N * L],
-                                                NPts=PtsPerLayer,
-                                                Layers = MeasLayers)
+         MakeEllipTestPoints(r₁,r₂;Center = [0,0,(wind_num - 1) / N * L],NPts=PtsPerLayer,Layers = MeasLayers)
 
     end
     SliceArea = π*r₁*r₂
