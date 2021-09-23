@@ -15,7 +15,6 @@ Optim = "429524aa-4258-5aef-a3af-852621145aeb"
 PyPlot = "d330b81b-6aea-500a-939a-2ce795aea3ee"
 SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 Struve = "bbbc800e-c7bf-11e8-107b-9b6d1d23829a"
-jlSPICE = "d3a8213e-8799-4e3c-a67c-e9f77b5a9c10"
 
 [compat]
 julia = "1.5"
