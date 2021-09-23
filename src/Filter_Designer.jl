@@ -47,7 +47,7 @@ function DesignDriveFilter(
     WireDiam = 2e-3,
     WireFillFac = 0.75,
     PlotSrcR = TargetZ,
-    PlotFTs = false,
+    PlotFTs = true,
     VSrc = 2,
     DetermineFreq = false
 )
@@ -138,7 +138,7 @@ function DesignDriveFilter(
     println(
         "CFilt =  $(round(CFilt*1e6;sigdigits=3))μF matched with: CFiltMatch_L = $(round(CFiltMatch_L*1e6;sigdigits=3))μH ",
     )
-    AmpsPerVolt = CircModel_MatchingTFilt(DriveFreq, VSrc,
+    AmpsPerVolt = CircModel_SPICE(DriveFreq, VSrc,
     PlotSrcR,
     RDrive,
     NumDriveElements,
@@ -159,7 +159,9 @@ function DesignDriveFilter(
     PlotOn = PlotFTs)
 end
 
-function CircModel_MatchingTFilt(DriveFreq, VSrc,
+
+
+function CircModel_SPICE(DriveFreq, VSrc,
     PlotSrcR,
     RDrive,
     NumDriveElements,
@@ -177,106 +179,66 @@ function CircModel_MatchingTFilt(DriveFreq, VSrc,
     LFiltMatch_C,
     CFilt,
     CFiltMatch_L;
-    PlotOn = false
-
-)
-
-
-    circ = @circuit begin
-        j_in = voltagesource()
-        rs = resistor(PlotSrcR)
-        ESR = resistor(RDrive)
-        ESL = inductor(NumDriveElements * LDrive)
-        ESC = capacitor(CDrive / NumDriveElements)
-        MatchCSer = capacitor(SerCap)
-        LTee_2_mod = inductor(LTee_2)
-        LTee_2_ESRmod = resistor(LTee_2_ESR)
-        LTee_1_mod = inductor(LTee_1)
-        LTee_1_ESRmod = resistor(LTee_1_ESR)
-        CParAct_mod = capacitor(CParAct)
-        LFilt_mod = inductor(LFilt)
-        LFiltESR_mod = resistor(LFilt1_ESR)
-        LFilt_mod2 = inductor(LFilt)
-        LFiltESR_mod2 = resistor(LFilt1_ESR)
-        LFiltMatch_C_mod2 = capacitor(LFiltMatch_C)
-        CFilt_mod = capacitor(CFilt)
-        CFiltMatch_L_mod = inductor(CFiltMatch_L)
-        LFilt2_ESR_mod = resistor(LFilt2_ESR)
-        LFiltMatch_C_mod = capacitor(LFiltMatch_C)
-        i_out = currentprobe()
-
-        j_in[+] ⟷ rs[1] #\longleftrightarrow
-        j_in[-] ⟷ gnd
-        rs[2] ⟷ LFiltESR_mod[1]
-        LFiltESR_mod[2] ⟷ LFilt_mod[1]
-        LFilt_mod[2] ⟷ LFiltMatch_C_mod[1]
-        LFiltMatch_C_mod[2] ⟷ CFilt_mod[1]
-        LFiltMatch_C_mod[2] ⟷ CFiltMatch_L_mod[1]
-        CFiltMatch_L_mod[2] ⟷ LFilt2_ESR_mod[1]
-        LFilt2_ESR_mod[2] ⟷ gnd
-        CFilt_mod[2] ⟷ gnd
-        LFiltMatch_C_mod[2] ⟷ LFiltESR_mod2[1]
-        LFiltESR_mod2[2] ⟷ LFilt_mod2[1]
-        LFilt_mod2[2] ⟷ LFiltMatch_C_mod2[1]
-        LFiltMatch_C_mod2[2] ⟷ LTee_1_mod[1]
-        LTee_1_mod[2] ⟷ LTee_1_ESRmod[1]
-        LTee_1_ESRmod[2] ⟷ CParAct_mod[1]
-        CParAct_mod[2] ⟷ gnd
-        LTee_1_ESRmod[2] ⟷ LTee_2_mod[1]
-        LTee_2_mod[2] ⟷ LTee_2_ESRmod[1]
-        LTee_2_ESRmod[2] ⟷ ESC[1]
-        ESC[2] ⟷ MatchCSer[1]
-        MatchCSer[2] ⟷ ESL[1]
-        ESL[2] ⟷ ESR[1]
-        ESR[2] ⟷ i_out[+]
-        i_out[-] ⟷ gnd
-    end
-    println("Starting to model")
-    fs_model = 1e6
-    model = DiscreteModel(circ, 1 / fs_model)
-    FreqList = 1000:100:100e3
-    NumPeriods = 1000
-    df = FreqList[2] - FreqList[1]
-    Mags = zeros(length(FreqList), 1)
-    WindowHanning(N) =
-        0.5 .- 0.5 .* cos.(2 .* pi .* collect(0:(N-1)) ./ (N - 1))
-    println("Starting to run sim")
-    for F in FreqList
-        y = run!(
-            model,
-            [
-                VSrc .* sin(2π * F / fs_model * n) for c = 1:1,
-                n = 1:NumPeriods*fs_model/F
-            ],
-        )
-        y = y[:] .* WindowHanning(length(y))[:]
-        FFT_y = abs.(fft(y)) / length(y) .* 4
-
-        Mags[Int((F - FreqList[1]) / df)+1] = maximum(FFT_y)
-    end
+    PlotOn = true,
+    FreqList = 1000:100:100e3,
+    ArchetypeNetFileName = nothing)
 
 
-    y2 = run!(
-        model,
-        [
-            VSrc .* sin(2π * DriveFreq / fs_model * n) for c = 1:1,
-            n = 1:NumPeriods*fs_model/DriveFreq
-        ],
-    )
-    y2 = y2[:] .* WindowHanning(length(y2))[:]
-    FFT_y2 = abs.(fft(y2)) / length(y2) .* 4
-
-    AmpsPerVolt = maximum(FFT_y2)
-
-    if PlotOn
-        semilogy(FreqList, Mags[:])
-        xlabel("Frequency")
-        ylabel("Drive Current")
-        semilogy(DriveFreq, AmpsPerVolt,"r*")
-    end
     
-    println("Tx current per $VSrc Volts is $(round(AmpsPerVolt,sigdigits=3)) Amps")
-    return AmpsPerVolt
+
+    if ArchetypeNetFileName === nothing
+        ArchetypeNetFileName = pwd()*"\\src\\Filter_Archetype_1.net"
+    end
+    SPICE_DF,NodeList,InputList,NumVSources = SPICE2Matrix(ArchetypeNetFileName)
+    UpdateElementVal!(SPICE_DF,"RSrc",PlotSrcR)
+
+    UpdateElementVal!(SPICE_DF,"LFilt1",LFilt)
+    UpdateElementVal!(SPICE_DF,"LFilt2",LFilt)
+    UpdateElementVal!(SPICE_DF,"CLFilt_C1",LFiltMatch_C)
+    UpdateElementVal!(SPICE_DF,"CLFilt_C2",LFiltMatch_C)
+    UpdateElementESR!(SPICE_DF,"LFilt1",LFilt1_ESR)
+
+    UpdateElementVal!(SPICE_DF,"CFilt",CFilt)
+    UpdateElementVal!(SPICE_DF,"LCFilt_L",CFiltMatch_L)
+    UpdateElementESR!(SPICE_DF,"LCFilt_L",LFilt2_ESR)
+
+    UpdateElementVal!(SPICE_DF,"RDrive",RDrive)
+    UpdateElementVal!(SPICE_DF,"LDrive",NumDriveElements*LDrive)
+    UpdateElementVal!(SPICE_DF,"LDrive",CDrive/NumDriveElements)
+
+    UpdateElementVal!(SPICE_DF,"CSer",SerCap)
+    UpdateElementVal!(SPICE_DF,"CPar",CParAct)
+
+    UpdateElementVal!(SPICE_DF,"LTee1",LTee_1)
+    UpdateElementESR!(SPICE_DF,"LTee1",LTee_1_ESR)
+    UpdateElementVal!(SPICE_DF,"LTee2",LTee_2)
+    UpdateElementESR!(SPICE_DF,"LTee2",LTee_2_ESR)
+
+    inputs = zeros(length(InputList))
+    inputs[end-(NumVSources-1):end] .= 1
+
+    ResultNodeNames = vcat("V(".*NodeList.*")", "I(".*(InputList[end-(NumVSources-1):end]).*")")
+    
+    
+    Results = [ abs.(inv(SPICE_DF2Matrix_ω(SPICE_DF,2*π*FreqList[i],InputList))*inputs) for i in 1:length(FreqList)]
+    Results = hcat(Results...)
+    ResDict = Dict(ResultNodeNames[1] => Results[1,:])
+    for i in 2:length(ResultNodeNames)
+      
+         merge!(ResDict,Dict(ResultNodeNames[i] => Results[i,:]))
+       
+    end
+
+    CurrentVec = VSrc.* plotACElCurrent(SPICE_DF,FreqList,Results,"LDrive")
+    if PlotOn
+        pygui(true)
+        plot(FreqList,CurrentVec)
+        xlabel("Frequency, Hz")
+        ylabel("Current in LDrive")
+    end
+
+    getElementCurrents(SPICE_DF,Results,DriveFreq)
+    return CurrentVec, Results, SPICE_DF,inputs
 end
 
 
@@ -574,4 +536,126 @@ function PlotImpedanceTransformList(ImpList; InitialImp = nothing, ArrHeadWidth 
     end
     phasor(PrevImp, color = ColorList[length(ImpList)+1])
     title("Admittance")
+end
+
+
+
+function CircModel_MatchingTFilt(DriveFreq, VSrc,
+    PlotSrcR,
+    RDrive,
+    NumDriveElements,
+    LDrive,
+    CDrive,
+    SerCap,
+    LTee_2,
+    LTee_2_ESR,
+    LTee_1,
+    LTee_1_ESR,
+    CParAct,
+    LFilt,
+    LFilt2_ESR,
+    LFilt1_ESR,
+    LFiltMatch_C,
+    CFilt,
+    CFiltMatch_L;
+    PlotOn = false
+
+)
+
+
+    circ = @circuit begin
+        j_in = voltagesource()
+        rs = resistor(PlotSrcR)
+        ESR = resistor(RDrive)
+        ESL = inductor(NumDriveElements * LDrive)
+        ESC = capacitor(CDrive / NumDriveElements)
+        MatchCSer = capacitor(SerCap)
+        LTee_2_mod = inductor(LTee_2)
+        LTee_2_ESRmod = resistor(LTee_2_ESR)
+        LTee_1_mod = inductor(LTee_1)
+        LTee_1_ESRmod = resistor(LTee_1_ESR)
+        CParAct_mod = capacitor(CParAct)
+        LFilt_mod = inductor(LFilt)
+        LFiltESR_mod = resistor(LFilt1_ESR)
+        LFilt_mod2 = inductor(LFilt)
+        LFiltESR_mod2 = resistor(LFilt1_ESR)
+        LFiltMatch_C_mod2 = capacitor(LFiltMatch_C)
+        CFilt_mod = capacitor(CFilt)
+        CFiltMatch_L_mod = inductor(CFiltMatch_L)
+        LFilt2_ESR_mod = resistor(LFilt2_ESR)
+        LFiltMatch_C_mod = capacitor(LFiltMatch_C)
+        i_out = currentprobe()
+
+        j_in[+] ⟷ rs[1] #\longleftrightarrow
+        j_in[-] ⟷ gnd
+        rs[2] ⟷ LFiltESR_mod[1]
+        LFiltESR_mod[2] ⟷ LFilt_mod[1]
+        LFilt_mod[2] ⟷ LFiltMatch_C_mod[1]
+        LFiltMatch_C_mod[2] ⟷ CFilt_mod[1]
+        LFiltMatch_C_mod[2] ⟷ CFiltMatch_L_mod[1]
+        CFiltMatch_L_mod[2] ⟷ LFilt2_ESR_mod[1]
+        LFilt2_ESR_mod[2] ⟷ gnd
+        CFilt_mod[2] ⟷ gnd
+        LFiltMatch_C_mod[2] ⟷ LFiltESR_mod2[1]
+        LFiltESR_mod2[2] ⟷ LFilt_mod2[1]
+        LFilt_mod2[2] ⟷ LFiltMatch_C_mod2[1]
+        LFiltMatch_C_mod2[2] ⟷ LTee_1_mod[1]
+        LTee_1_mod[2] ⟷ LTee_1_ESRmod[1]
+        LTee_1_ESRmod[2] ⟷ CParAct_mod[1]
+        CParAct_mod[2] ⟷ gnd
+        LTee_1_ESRmod[2] ⟷ LTee_2_mod[1]
+        LTee_2_mod[2] ⟷ LTee_2_ESRmod[1]
+        LTee_2_ESRmod[2] ⟷ ESC[1]
+        ESC[2] ⟷ MatchCSer[1]
+        MatchCSer[2] ⟷ ESL[1]
+        ESL[2] ⟷ ESR[1]
+        ESR[2] ⟷ i_out[+]
+        i_out[-] ⟷ gnd
+    end
+    println("Starting to model")
+    fs_model = 1e6
+    model = DiscreteModel(circ, 1 / fs_model)
+    FreqList = 1000:100:100e3
+    NumPeriods = 1000
+    df = FreqList[2] - FreqList[1]
+    Mags = zeros(length(FreqList), 1)
+    WindowHanning(N) =
+        0.5 .- 0.5 .* cos.(2 .* pi .* collect(0:(N-1)) ./ (N - 1))
+    println("Starting to run sim")
+    for F in FreqList
+        y = run!(
+            model,
+            [
+                VSrc .* sin(2π * F / fs_model * n) for c = 1:1,
+                n = 1:NumPeriods*fs_model/F
+            ],
+        )
+        y = y[:] .* WindowHanning(length(y))[:]
+        FFT_y = abs.(fft(y)) / length(y) .* 4
+
+        Mags[Int((F - FreqList[1]) / df)+1] = maximum(FFT_y)
+    end
+
+
+    y2 = run!(
+        model,
+        [
+            VSrc .* sin(2π * DriveFreq / fs_model * n) for c = 1:1,
+            n = 1:NumPeriods*fs_model/DriveFreq
+        ],
+    )
+    y2 = y2[:] .* WindowHanning(length(y2))[:]
+    FFT_y2 = abs.(fft(y2)) / length(y2) .* 4
+
+    AmpsPerVolt = maximum(FFT_y2)
+
+    if PlotOn
+        semilogy(FreqList, Mags[:])
+        xlabel("Frequency")
+        ylabel("Drive Current")
+        semilogy(DriveFreq, AmpsPerVolt,"r*")
+    end
+    
+    println("Tx current per $VSrc Volts is $(round(AmpsPerVolt,sigdigits=3)) Amps")
+    return AmpsPerVolt
 end
