@@ -48,7 +48,8 @@ function DesignDriveFilter(
     WireFillFac = 0.75,
     PlotSrcR = TargetZ,
     PlotFTs = false,
-    VSrc = 2
+    VSrc = 2,
+    DetermineFreq = false
 )
     
 
@@ -63,38 +64,56 @@ function DesignDriveFilter(
         ωDr * LDrive * NumDriveElements - NumDriveElements ./ (ωDr * CDrive)
     Reactance_Load = round(Reactance_Load; sigdigits = 3)
     println("The reactance of the load is: $(round(Reactance_Load;sigdigits=3)) Ω")
+    if ~DetermineFreq
+        if (Reactance_Load > 0)
 
-    if (Reactance_Load > 0)
+            SerCap,CParAct = ImpMatch_LLoad(TargetZ, ZDrive, Reactance_Load,ωDr)
 
-        SerCap,CParAct = ImpMatch_LLoad(TargetZ, ZDrive, Reactance_Load,ωDr)
+            LTee_2 = ZeroVal
+            LTee_2_ESR = ZeroVal
+            LTee_1 = ZeroVal
+            LTee_1_ESR = ZeroVal
 
+
+        elseif (Reactance_Load < 0)
+
+            LTee_2,LTee_2_ESR,CParAct = ImpMatch_CLoad(TargetZ, ZDrive, Reactance_Load,ωDr)
+
+            LTee_1 = ZeroVal
+            LTee_1_ESR = ZeroVal
+            SerCap = ZeroVal
+            
+        elseif (Reactance_Load == 0)
+            matchRatio = real(TargetZ) / real(ZDrive)
+            Q = sqrt(matchRatio - 1)
+            Xs = Q * real(ZDrive)
+            LSer2 = Xs / (ωDr)
+            LTee_2 = LSer2
+            LTee_1 = ZeroVal
+            LTee_1_ESR = ZeroVal
+            CParAct = findResPair((1 + Q^(-2)) * LSer2, DriveFreq)
+            LTee_2_Geom =
+                ToroidOptimizer(WireDiam, LTee_2; CuFillFactor = WireFillFac)
+            LTee_2_ESR = LTee_2_Geom.DCore.Resistance
+            SerCap = 1e6
+        end
+    else
+
+        matchRatio = real(TargetZ) / real(ZDrive)
+        Q = √(matchRatio - 1)
+        Xs = Q * real(ZDrive)
+        
+        DriveFreq = findFilterFreq(Q,real(ZDrive), LDrive * NumDriveElements, CDrive / NumDriveElements)
+        ωDr = 2*π*DriveFreq
+        println("Determined Q to be $(round(Q))")
+        println("Determined drive freq. to be $(round(DriveFreq)) Hz")
+
+        CParAct = 1 / (ωDr*Xs)
         LTee_2 = ZeroVal
         LTee_2_ESR = ZeroVal
         LTee_1 = ZeroVal
         LTee_1_ESR = ZeroVal
-
-
-    elseif (Reactance_Load < 0)
-
-        LTee_2,LTee_2_ESR,CParAct = ImpMatch_CLoad(TargetZ, ZDrive, Reactance_Load,ωDr)
-
-        LTee_1 = ZeroVal
-        LTee_1_ESR = ZeroVal
-        SerCap = ZeroVal
-        
-    elseif (Reactance_Load == 0)
-        matchRatio = real(TargetZ) / real(ZDrive)
-        Q = sqrt(matchRatio - 1)
-        Xs = Q * real(ZDrive)
-        LSer2 = Xs / (ωDr)
-        LTee_2 = LSer2
-        LTee_1 = ZeroVal
-        LTee_1_ESR = ZeroVal
-        CParAct = findResPair((1 + Q^(-2)) * LSer2, DriveFreq)
-        LTee_2_Geom =
-            ToroidOptimizer(WireDiam, LTee_2; CuFillFactor = WireFillFac)
-        LTee_2_ESR = LTee_2_Geom.DCore.Resistance
-        SerCap = ZeroVal
+        SerCap = 1e6
     end
     println("L Tee 1 =  $(round(LTee_1*1e6;sigdigits=3))μH ")
     println("L Tee 2 =  $(round(LTee_2*1e6;sigdigits=3))μH ")
@@ -303,6 +322,18 @@ function ImpMatch_CLoad(TargetZ, ZDrive, Reactance_Load,ωDr)
         return LTee_2,LTee_2_ESR,CParAct
 
 end
+
+"""
+This function determines the ideal frequency of a resonant RLC such that it can be matched to a different impedance. It assumes there is already an L, C, and R, so at some frequency it the real part of the admittance will be the matched admittance. This admittance is made fully real with a shunt reactive element
+
+"""
+function findFilterFreq(Q,RLoad,L,C)
+f = ((Q*RLoad + √(Q^2*RLoad^2+4*L/C)) / (4*π*L) , (Q*RLoad - √(Q^2*RLoad^2+4*L/C)) / (4*π*L) )
+
+return maximum(f)
+end
+
+
 """
 
 Calculates parallel impedances.

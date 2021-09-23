@@ -13,6 +13,8 @@ LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 MPI_Tools = "97d903a3-cacc-4b79-8a19-43190c4af4ff"
 Optim = "429524aa-4258-5aef-a3af-852621145aeb"
 PyPlot = "d330b81b-6aea-500a-939a-2ce795aea3ee"
+SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
+Struve = "bbbc800e-c7bf-11e8-107b-9b6d1d23829a"
 
 [compat]
 julia = "1.5"
