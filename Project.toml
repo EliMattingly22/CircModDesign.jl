@@ -19,6 +19,7 @@ SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 Struve = "bbbc800e-c7bf-11e8-107b-9b6d1d23829a"
 
 [compat]
+Struve = "0.1"
 julia = "1.5"
 
 [extras]
