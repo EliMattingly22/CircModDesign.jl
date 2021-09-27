@@ -6,7 +6,7 @@ include("SPICE2Matrix.jl")
 This function runs an AC analysis (freq. sweep) for an LTSPICE netlist file.
 
     if no inputs are given, it will prompt for the user to pick a file
-    
+
     Inputs:
     FileName: Path to netlist (LTSPICE: View→SPICE netlist, and it will show a text file as well as populate in PWD)
     FreqList: List of frequencies to test (Hz), Default is 100 Hz to 100kHz in steps of 10
@@ -17,7 +17,7 @@ function RunACAnalysis(FileName=nothing, FreqList = 100:10:100e3, inputs = nothi
     if FileName===nothing
             FileName = open_dialog("Pick a file")
     end
-    
+
     SPICE_DF,NodeList,InputList,NumVSources = SPICE2Matrix(FileName)
     println(InputList)
     if inputs===nothing
@@ -25,20 +25,20 @@ function RunACAnalysis(FileName=nothing, FreqList = 100:10:100e3, inputs = nothi
         inputs = zeros(length(InputList))
         inputs[end-(NumVSources-1):end] .= 1
     end
-    
+
     ResultNodeNames = vcat("V(".*NodeList.*")", "I(".*(InputList[end-(NumVSources-1):end]).*")")
-    
-    
+
+
     Results = [ abs.(inv(SPICE_DF2Matrix_ω(SPICE_DF,2*π*FreqList[i],InputList))*inputs) for i in 1:length(FreqList)]
     Results = hcat(Results...)
     ResDict = Dict(ResultNodeNames[1] => Results[1,:])
     for i in 2:length(ResultNodeNames)
-      
+
          merge!(ResDict,Dict(ResultNodeNames[i] => Results[i,:]))
-       
+
     end
-    
-    
+
+
 
 
     return FreqList,Results, ResDict
@@ -59,9 +59,9 @@ This function takes in:
 function DetermineTempCo(FileName=nothing, DriveFreq = 25e3, ComponentName = "Ldrive";
     FreqList = 100:10:100e3,
     inputs = nothing,
-    Θᵣ = 1, Θc = 1, 
+    Θᵣ = 1, Θc = 1,
     TCᵣ = 0.004, TCc = 0.0003,
-    InputScaling = 1) 
+    InputScaling = 1)
 
 
 
@@ -84,9 +84,9 @@ function DetermineTempCo(FileName=nothing, DriveFreq = 25e3, ComponentName = "Ld
     Results = hcat(Results...)
     ResDict = Dict(ResultNodeNames[1] => Results[1,:])
     for i in 2:length(ResultNodeNames)
-    
+
         merge!(ResDict,Dict(ResultNodeNames[i] => Results[i,:]))
-    
+
     end
     CurVec = plotACElCurrent(SPICE_DF,FreqList,Results,ComponentName)
     plot(FreqList,abs.(CurVec))
@@ -98,19 +98,19 @@ function DetermineTempCo(FileName=nothing, DriveFreq = 25e3, ComponentName = "Ld
 
     BaselineCurrent = CurrentDF.Current[CurrentElIndex]
 
-   
+
     SPICE_DF.Drift = zeros(length(SPICE_DF.Name))
     SPICE_DF.TempRise = zeros(length(SPICE_DF.Name))
     SPICE_DF.Dissipation = zeros(length(SPICE_DF.Name))
     for i in 1:length(SPICE_DF.Name)
-        
+
         if SPICE_DF.Type[i] =='R'
             Z = SPICE_DF.Value[i]
             TmpIndex = findfirst(isequal(SPICE_DF.Name[i]),CurrentDF.Name)
 
             SPICE_DF.Dissipation[i] = abs(CurrentDF.Current[TmpIndex])^2*Z #Power = I²R
             SPICE_DF.TempRise[i]    = Θᵣ*SPICE_DF.Dissipation[i]
-            SPICE_DF.Drift[i]       = (1 + Θᵣ*SPICE_DF.Dissipation[i]*TCᵣ) 
+            SPICE_DF.Drift[i]       = (1 + Θᵣ*SPICE_DF.Dissipation[i]*TCᵣ)
             SPICE_DF.Value[i]       = (1 + Θᵣ*SPICE_DF.Dissipation[i]*TCᵣ) * SPICE_DF.Value[i]
 
         elseif SPICE_DF.Type[i] =='L'
@@ -119,7 +119,7 @@ function DetermineTempCo(FileName=nothing, DriveFreq = 25e3, ComponentName = "Ld
 
             SPICE_DF.Dissipation[i] = abs(CurrentDF.Current[TmpIndex])^2*Z #Power = I²(ESR)
             SPICE_DF.TempRise[i]    = Θᵣ*SPICE_DF.Dissipation[i]
-            SPICE_DF.Drift[i]       = (1 + Θᵣ*SPICE_DF.Dissipation[i]*TCᵣ) 
+            SPICE_DF.Drift[i]       = (1 + Θᵣ*SPICE_DF.Dissipation[i]*TCᵣ)
             SPICE_DF.ESR[i]       = (1 + Θᵣ*SPICE_DF.Dissipation[i]*TCᵣ) * SPICE_DF.ESR[i]# for inductors, only the ESR will drift, not inductance
         elseif SPICE_DF.Type[i] =='C'
             Z = SPICE_DF.ESR[i]
@@ -132,7 +132,7 @@ function DetermineTempCo(FileName=nothing, DriveFreq = 25e3, ComponentName = "Ld
 
         end
     end
-    
+
     NewCurrResults =[ inv(SPICE_DF2Matrix_ω(SPICE_DF,2*π*DriveFreq,InputList))*inputs]
     NewCurrResults = hcat(NewCurrResults...)
 
@@ -145,9 +145,9 @@ function DetermineTempCo(FileName=nothing, DriveFreq = 25e3, ComponentName = "Ld
     Results2 = hcat(Results2...)
     ResDict2 = Dict(ResultNodeNames[1] => Results2[1,:])
     for i in 2:length(ResultNodeNames)
-    
+
         merge!(ResDict2,Dict(ResultNodeNames[i] => Results2[i,:]))
-    
+
     end
     CurVec2 = plotACElCurrent(SPICE_DF,FreqList,Results2,ComponentName)
     plot(FreqList,abs.(CurVec2))
@@ -160,7 +160,7 @@ end
 
 """
 This function takes in the SPICE dataframe, results vector(Nx1), and the frequency to test it at.
-        This is needed because the Results vector is in terms of node voltages (and currents in voltage sources) but often the current in a single component is useful to know. 
+        This is needed because the Results vector is in terms of node voltages (and currents in voltage sources) but often the current in a single component is useful to know.
 
         This gets the voltage across two nodes and divides by the impednace of a component
 
@@ -180,7 +180,7 @@ function getElementCurrents(SPICE_DF,Results,Freq)
             else
                 ΔV  = Results[N1]
             end
-        
+
         end
         if SPICE_DF.Type[i] =='R'
             Z = SPICE_DF.Value[i]
@@ -207,13 +207,13 @@ end
 
 """
 Plot AC Element Current
-similar to getElementCurrents, except the freq. is a vector, Results in Nx(FreqList Length), and only looks at a single component's current 
+similar to getElementCurrents, except the freq. is a vector, Results in Nx(FreqList Length), and only looks at a single component's current
 """
 function plotACElCurrent(SPICE_DF,FreqList,Results,ComponentName)
     ElIndex = findfirst(isequal(ComponentName),SPICE_DF.Name)
 
 
-        
+
 
             N1 = SPICE_DF.Node1[ElIndex]
             N2 = SPICE_DF.Node2[ElIndex]
@@ -224,28 +224,28 @@ function plotACElCurrent(SPICE_DF,FreqList,Results,ComponentName)
             else
                 ΔV  = Results[N1,:]
             end
-        
-       
+
+
         if SPICE_DF.Type[ElIndex] =='R'
             Z = SPICE_DF.Value[ElIndex]
             CurrentVec = ΔV ./ Z
-            
+
 
         elseif SPICE_DF.Type[ElIndex] =='L'
             Z = [2 .* π .* FreqList[i].*im.*SPICE_DF.Value[ElIndex] .+ SPICE_DF.ESR[ElIndex] for i in 1:length(FreqList)]
             CurrentVec = ΔV ./ Z
-            
+
 
         elseif SPICE_DF.Type[ElIndex] =='C'
             Z = [1 ./( 2 .* π .* FreqList[i].*im.*SPICE_DF.Value[ElIndex]) .+ SPICE_DF.ESR[ElIndex] for i in 1:length(FreqList)]
             CurrentVec = ΔV ./ Z
-            
+
 
         end
 
 
-    
-    
+
+
     return CurrentVec
 end
 
@@ -258,7 +258,7 @@ This function modifies the spice dataframe. Specifically, it updates a value of 
 
 """
 function UpdateElementVal!(DF, ComponentName::String,NewVal)
-    ElIndex = findfirst(isequal(ComponentName),SPICE_DF.Name)
+    ElIndex = findfirst(isequal(ComponentName),DF.Name)
     DF.Value[ElIndex] = NewVal
 end
 
@@ -270,6 +270,6 @@ This function modifies the spice dataframe. Specifically, it updates a value of 
 
 """
 function UpdateElementESR!(DF, ComponentName::String,NewVal)
-    ElIndex = findfirst(isequal(ComponentName),SPICE_DF.Name)
+    ElIndex = findfirst(isequal(ComponentName),DF.Name)
     DF.ESR[ElIndex] = NewVal
 end

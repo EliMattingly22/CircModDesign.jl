@@ -53,11 +53,12 @@ function DesignDriveFilter(
     PlotSrcR = TargetZ,
     PlotFTs = true,
     VSrc = 2,
-    DetermineFreq = false
+    DetermineFreq = false,
+    AddNotchFreq = nothing
 )
-    
 
-    ZeroVal = 0 #Some cases I wanted to try having no zero circuit elements 
+
+    ZeroVal = 1e-9 #Some cases I wanted to try having no zero circuit elements
     ωDr = 2 * π * DriveFreq
     ZDrive =
         RDrive * NumDriveElements +
@@ -86,7 +87,7 @@ function DesignDriveFilter(
             LTee_1 = ZeroVal
             LTee_1_ESR = ZeroVal
             SerCap = ZeroVal
-            
+
         elseif (Reactance_Load == 0)
             matchRatio = real(TargetZ) / real(ZDrive)
             Q = sqrt(matchRatio - 1)
@@ -106,7 +107,7 @@ function DesignDriveFilter(
         matchRatio = real(TargetZ) / real(ZDrive)
         Q = √(matchRatio - 1)
         Xs = Q * real(ZDrive)
-        
+
         DriveFreq = findFilterFreq(Q,real(ZDrive), LDrive * NumDriveElements, CDrive / NumDriveElements)
         ωDr = 2*π*DriveFreq
         println("Determined Q to be $(round(Q))")
@@ -128,11 +129,11 @@ function DesignDriveFilter(
     (LFilt, CFilt) = Butterworth_2(TargetZ, DriveFreq)
     LFiltMatch_C = findResPair(LFilt, DriveFreq)
     CFiltMatch_L = findResPair(CFilt, DriveFreq)
-    
+
     LFilt1_Geom =
             ToroidOptimizer(WireDiam, LFilt; CuFillFactor = WireFillFac)
     LFilt1_ESR = LFilt1_Geom.DCore.Resistance
-    
+
     LFilt2_Geom =
             ToroidOptimizer(WireDiam, CFiltMatch_L; CuFillFactor = WireFillFac)
     LFilt2_ESR = LFilt2_Geom.DCore.Resistance
@@ -142,8 +143,17 @@ function DesignDriveFilter(
     println(
         "CFilt =  $(round(CFilt*1e6;sigdigits=3))μF matched with: CFiltMatch_L = $(round(CFiltMatch_L*1e6;sigdigits=3))μH ",
     )
+
+    if ~(AddNotchFreq===nothing)
+        LNotch, CNotch, LNotch_Tune = makeNotchSection(AddNotchFreq, DriveFreq, TargetZ;LVal = 100e-6)
+    else
+        LNotch = 10
+        CNotch = 1e-12
+        LNotch_Tune = 1e-12
+    end
+
     AmpsPerVolt = CircModel_SPICE(DriveFreq, VSrc,
-    PlotSrcR,
+    1e-3,
     RDrive,
     NumDriveElements,
     LDrive,
@@ -159,7 +169,10 @@ function DesignDriveFilter(
     LFilt1_ESR,
     LFiltMatch_C,
     CFilt,
-    CFiltMatch_L;
+    CFiltMatch_L,
+    LNotch,
+    CNotch,
+    LNotch_Tune;
     PlotOn = PlotFTs)
 end
 
@@ -182,19 +195,28 @@ function CircModel_SPICE(DriveFreq, VSrc,
     LFilt1_ESR,
     LFiltMatch_C,
     CFilt,
-    CFiltMatch_L;
+    CFiltMatch_L,
+    LNotch,
+    CNotch,
+    LNotch_Tune;
     PlotOn = true,
     FreqList = 1000:100:100e3,
     ArchetypeNetFileName = nothing)
 
 
-    
+
 
     if ArchetypeNetFileName === nothing
-        ArchetypeNetFileName = pwd()*"\\src\\Filter_Archetype_1.net"
+
+        ArchetypeNetFileName = joinpath(dirname(pathof(CircModDesign)),"Filter_Archetype_1.net")
+
     end
     SPICE_DF,NodeList,InputList,NumVSources = SPICE2Matrix(ArchetypeNetFileName)
     UpdateElementVal!(SPICE_DF,"RSrc",PlotSrcR)
+
+    UpdateElementVal!(SPICE_DF,"LNotch_Tune",LNotch_Tune)
+    UpdateElementVal!(SPICE_DF,"LNotch",LNotch)
+    UpdateElementVal!(SPICE_DF,"CNotch",CNotch)
 
     UpdateElementVal!(SPICE_DF,"LFilt1",LFilt)
     UpdateElementVal!(SPICE_DF,"LFilt2",LFilt)
@@ -208,7 +230,7 @@ function CircModel_SPICE(DriveFreq, VSrc,
 
     UpdateElementVal!(SPICE_DF,"RDrive",RDrive)
     UpdateElementVal!(SPICE_DF,"LDrive",NumDriveElements*LDrive)
-    UpdateElementVal!(SPICE_DF,"LDrive",CDrive/NumDriveElements)
+    UpdateElementVal!(SPICE_DF,"CDrive",CDrive/NumDriveElements)
 
     UpdateElementVal!(SPICE_DF,"CSer",SerCap)
     UpdateElementVal!(SPICE_DF,"CPar",CParAct)
@@ -222,21 +244,21 @@ function CircModel_SPICE(DriveFreq, VSrc,
     inputs[end-(NumVSources-1):end] .= 1
 
     ResultNodeNames = vcat("V(".*NodeList.*")", "I(".*(InputList[end-(NumVSources-1):end]).*")")
-    
-    
+
+
     Results = [ abs.(inv(SPICE_DF2Matrix_ω(SPICE_DF,2*π*FreqList[i],InputList))*inputs) for i in 1:length(FreqList)]
     Results = hcat(Results...)
     ResDict = Dict(ResultNodeNames[1] => Results[1,:])
     for i in 2:length(ResultNodeNames)
-      
+
          merge!(ResDict,Dict(ResultNodeNames[i] => Results[i,:]))
-       
+
     end
 
     CurrentVec = VSrc.* plotACElCurrent(SPICE_DF,FreqList,Results,"LDrive")
     if PlotOn
         pygui(true)
-        plot(FreqList,CurrentVec)
+        semilogy(FreqList,abs.(CurrentVec[:]))
         xlabel("Frequency, Hz")
         ylabel("Current in LDrive")
     end
@@ -278,7 +300,7 @@ function ImpMatch_CLoad(TargetZ, ZDrive, Reactance_Load,ωDr)
         Xs = Q * real(ZDrive)
         LSer2 = Xs / (ωDr)
         LTee_2 = LSer2 + LSer
-        
+
         CParAct = findResPair((1 + Q^(-2)) * LSer2, DriveFreq)
         LTee_2_Geom =
             ToroidOptimizer(WireDiam, LTee_2; CuFillFactor = WireFillFac)
@@ -299,6 +321,25 @@ f = ((Q*RLoad + √(Q^2*RLoad^2+4*L/C)) / (4*π*L) , (Q*RLoad - √(Q^2*RLoad^2+
 return maximum(f)
 end
 
+
+"""
+This function makes a filter section that notches out a frequency (NotchFreq), but is apparently real at another (DriveFreq)
+    the inputs are:
+        * NotchFreq: the freq that will be shunted out
+        * DriveFreq: The freq that should remain real
+        * RMatch: The resistance the drive coil is tuned to
+        * LVal is a kwarg because either the inductor or capacitor value should be pre-defined
+The outputs are:
+    LVal(Henries)
+    CVal(Farads)
+    LTune(Henries)
+"""
+function makeNotchSection(NotchFreq, DriveFreq, RMatch;LVal = 100e-6)
+CVal = findResPair(LVal, NotchFreq)
+Resid_Reactance = -1*(imag(Par(Z_Cap(CVal,DriveFreq)+Z_Ind(LVal,DriveFreq),RMatch)))
+LTune = Resid_Reactance/(2*π*DriveFreq)
+    return LVal,CVal,LTune
+end
 
 """
 
@@ -324,14 +365,14 @@ end
 """
 Parallel component lists
 Input is Array{Tuple{Number,String},1}
-e.g. 
+e.g.
 Freq = 25e3
 CompList = [(3, "R"),(30e-6, "L"),(200e-9,"C")]
 Par(CompList,Freq)
 
 """
 function Par(C::Array{Tuple{Real,String},1},freq)
-    
+
     Z = Complex.(zeros(length(C)))
     for i in 1:length(C)
         if (lowercase(C[i][2])=="r") | (lowercase(C[i][2])=="resistor")
@@ -348,7 +389,7 @@ function Par(C::Array{Tuple{Real,String},1},freq)
 
     end
 
-    
+
     Y = 1 ./Z
     YTotal = sum(Y)
     Zeff = 1/YTotal
@@ -659,7 +700,7 @@ function CircModel_MatchingTFilt(DriveFreq, VSrc,
         ylabel("Drive Current")
         semilogy(DriveFreq, AmpsPerVolt,"r*")
     end
-    
+
     println("Tx current per $VSrc Volts is $(round(AmpsPerVolt,sigdigits=3)) Amps")
     return AmpsPerVolt
 end
