@@ -307,7 +307,16 @@ FieldMapPointPath(C_PointPath, 20; WeightRadius = true,InvWeights = true)
 
 end
 
-
+"""
+This function takes in the parameters of a circular Rogowski coil
+    N: Num turns,
+    ID: ID of circle in meters
+    OD: OD of circle in meters
+    and kwargs:
+    Current: Current in the wire being sensed
+    μ: permeability of the material
+    ω: frequency (rad/sec) of current
+"""
 function Rogowski_Calc(N,ID,OD;Current=1,μ=4*π*1e-7,ω = 25e3*2*π)
     
     # IStraightWire(r) = μ*Current/(2*π*r)
@@ -316,6 +325,27 @@ function Rogowski_Calc(N,ID,OD;Current=1,μ=4*π*1e-7,ω = 25e3*2*π)
     # dr =  (OD-ID)/1e4
     # MutualInductance = N*sum([CircWidth(xx,ID,OD).*(IStraightWire(xx)).*dr for xx in (ID+dr):dr:OD][:])./Current #Derivation by integrating flux over area
     M₂₁ =μ*N/2*(ID+OD-2*√(ID*OD)) #From multiple sources. 
+
+    V = ω*M₂₁*Current
+    return (M₂₁,V)
+end
+
+
+"""
+This function takes in the parameters of a rectagular Rogowski coil
+    N: Num turns,
+    h: height of rectangle in meters
+    ID: ID of rectangle in meters
+    OD: OD of rectangle in meters
+    and kwargs:
+    Current: Current in the wire being sensed
+    μ: permeability of the material
+    ω: frequency (rad/sec) of current
+"""
+function Rogowski_Calc(N,h,ID,OD;Current=1,μ=4*π*1e-7,ω = 25e3*2*π)
+    
+    
+    M₂₁ =μ*N/(2*π)*h*(log(OD/ID)) #From multiple sources. 
 
     V = ω*M₂₁*Current
     return (M₂₁,V)
