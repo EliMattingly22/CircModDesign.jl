@@ -41,7 +41,7 @@ function MakeEllipSolenoid(
         L, #Coil length (axial)
         InsDiam, #Coil diamter
         N, #N turns
-        ϵr_ins, #external permittivity
+        1, #external permittivity
         ϵr_ins) #Internal permittivity
     SRF = 1 / (2 * π * sqrt(L_Coil * C_Coil))
 

@@ -273,3 +273,174 @@ function UpdateElementESR!(DF, ComponentName::String,NewVal)
     ElIndex = findfirst(isequal(ComponentName),DF.Name)
     DF.ESR[ElIndex] = NewVal
 end
+
+function GetElementVal(SPICE_DF,Name)
+    SPICE_DF.Value[findfirst(isequal(Name),SPICE_DF.Name)]
+end
+
+function addPowerDiss_DF!(SPICE_DF,inputs,InputList,DriveFreq;TargetRMSCurrent=35,ComponentName="LDrive")
+
+
+    CurrResults =[ inv(SPICE_DF2Matrix_ω(SPICE_DF,2*π*DriveFreq,InputList))*inputs]
+    CurrResults = hcat(CurrResults...)
+
+    CurrentDF = getElementCurrents(SPICE_DF,CurrResults,DriveFreq)
+    CurrentElIndex = findfirst(isequal(ComponentName),CurrentDF.Name)
+
+    BaselineCurrent = CurrentDF.Current[CurrentElIndex]
+
+    
+    UpdatedInputVoltage = TargetRMSCurrent/abs.(BaselineCurrent)
+
+    CurrResults =[ inv(SPICE_DF2Matrix_ω(SPICE_DF,2*π*DriveFreq,InputList))*inputs*UpdatedInputVoltage]
+    CurrResults = hcat(CurrResults...)
+
+    CurrentDF = getElementCurrents(SPICE_DF,CurrResults,DriveFreq)
+    
+
+    
+    
+    SPICE_DF.Dissipation = zeros(length(SPICE_DF.Name))
+    for i in 1:length(SPICE_DF.Name)
+
+        if SPICE_DF.Type[i] =='R'
+            Z = SPICE_DF.Value[i]
+            TmpIndex = findfirst(isequal(SPICE_DF.Name[i]),CurrentDF.Name)
+
+            SPICE_DF.Dissipation[i] = abs(CurrentDF.Current[TmpIndex])^2*Z #Power = I²R
+            
+        elseif SPICE_DF.Type[i] =='L'
+            Z = SPICE_DF.ESR[i]
+            TmpIndex = findfirst(isequal(SPICE_DF.Name[i]),CurrentDF.Name)
+
+            SPICE_DF.Dissipation[i] = abs(CurrentDF.Current[TmpIndex])^2*Z #Power = I²(ESR)
+           
+        elseif SPICE_DF.Type[i] =='C'
+            Z = SPICE_DF.ESR[i]
+            TmpIndex = findfirst(isequal(SPICE_DF.Name[i]),CurrentDF.Name)
+
+            SPICE_DF.Dissipation[i] = abs(CurrentDF.Current[TmpIndex])^2*Z #Power = I²(ESR)
+           
+
+        end
+
+    end
+    return CurrentDF
+end
+
+
+
+
+"""
+This function takes in:
+
+    DriveFreq, primary frequency of interest in Hz
+    Θᵣ = 1, Θc = 1 are the lumped thermal resistance of inductors and resistors ( Θᵣ) and capacitors(Θc) in ᵒC per Watt
+    TCᵣ = 0.004, TCc = 0.0003 are the temperature coefficients of the components-- TCᵣis the resistance tempco, and TCc is the capacitor tempco
+        Units for TC is in UL per deg C
+
+    InputScaling is the scaling of the input vector, for instance if you use the default input vec it will default to 1V at voltage sources, but this scalar can be used to modify that value
+
+"""
+function DetermineComponentsTempCoeffs(SPICE_DF,InputList,NumVSources,DriveFreq = 25e3, ComponentName = "LDrive";
+    Θᵣ = 1, Θc = 1,
+    TCᵣ = 0.004, TCc = 0.0003,
+    InputScaling = 1,
+    δppm = 900)
+
+    δ = δppm*1e-6
+
+
+
+    
+    inputs = zeros(length(InputList))
+    inputs[end-(NumVSources-1):end] .= (1*InputScaling)
+   
+
+  
+   
+    
+    CurrResults =[ inv(SPICE_DF2Matrix_ω(SPICE_DF,2*π*DriveFreq,InputList))*inputs]
+    CurrResults = hcat(CurrResults...)
+
+    CurrentDF = getElementCurrents(SPICE_DF,CurrResults,DriveFreq)
+    CurrentElIndex = findfirst(isequal(ComponentName),CurrentDF.Name)
+    
+    BaselineCurrent = CurrentDF.Current[CurrentElIndex]
+
+
+    SPICE_DF.Drift = zeros(length(SPICE_DF.Name))
+    SPICE_DF.TempRise = zeros(length(SPICE_DF.Name))
+    SPICE_DF.Dissipation = zeros(length(SPICE_DF.Name))
+    SPICE_DF.MagDriftPercent = zeros(length(SPICE_DF.Name))
+    for i in 1:length(SPICE_DF.Name)
+
+        if SPICE_DF.Type[i] =='R'
+            Z = SPICE_DF.Value[i]
+            TmpIndex = findfirst(isequal(SPICE_DF.Name[i]),CurrentDF.Name)
+
+            SPICE_DF.Dissipation[i] = abs(CurrentDF.Current[TmpIndex])^2*Z #Power = I²R
+            SPICE_DF.TempRise[i]    = Θᵣ*SPICE_DF.Dissipation[i]
+            SPICE_DF.Drift[i]       = (1 + Θᵣ*SPICE_DF.Dissipation[i]*TCᵣ)
+            dVal = SPICE_DF.Value[i]*δ
+            SPICE_DF.Value[i]       = dVal +  SPICE_DF.Value[i]
+
+            NewCurrResults =[ inv(SPICE_DF2Matrix_ω(SPICE_DF,2*π*DriveFreq,InputList))*inputs]
+            NewCurrResults = hcat(NewCurrResults...)
+        
+            NewCurrentDF = getElementCurrents(SPICE_DF,NewCurrResults,DriveFreq)
+            PostHeatCurrent = NewCurrentDF.Current[CurrentElIndex]
+        
+            SPICE_DF.MagDriftPercent[i] = abs((PostHeatCurrent - BaselineCurrent) / PostHeatCurrent)/δ
+            SPICE_DF.Value[i]       =  SPICE_DF.Value[i]-dVal
+
+        elseif SPICE_DF.Type[i] =='L'
+            Z = SPICE_DF.ESR[i]
+            TmpIndex = findfirst(isequal(SPICE_DF.Name[i]),CurrentDF.Name)
+
+            SPICE_DF.Dissipation[i] = abs(CurrentDF.Current[TmpIndex])^2*Z #Power = I²(ESR)
+            SPICE_DF.TempRise[i]    = Θᵣ*SPICE_DF.Dissipation[i]
+            SPICE_DF.Drift[i]       = (1 + Θᵣ*SPICE_DF.Dissipation[i]*TCᵣ)
+            dVal = SPICE_DF.ESR[i]*δ
+            SPICE_DF.ESR[i]       = dVal +  SPICE_DF.ESR[i]# for inductors, only the ESR will drift, not inductance
+            NewCurrResults =[ inv(SPICE_DF2Matrix_ω(SPICE_DF,2*π*DriveFreq,InputList))*inputs]
+            NewCurrResults = hcat(NewCurrResults...)
+        
+            NewCurrentDF = getElementCurrents(SPICE_DF,NewCurrResults,DriveFreq)
+            PostHeatCurrent = NewCurrentDF.Current[CurrentElIndex]
+        
+            SPICE_DF.MagDriftPercent[i] = abs((PostHeatCurrent - BaselineCurrent) / PostHeatCurrent)/δ
+
+            SPICE_DF.ESR[i]       =  SPICE_DF.ESR[i]-dVal
+
+
+        elseif SPICE_DF.Type[i] =='C'
+            # TempCo of celem PP caps is -300ppm/⁰
+            lossTangent = 2e-4
+            
+            TmpIndex = findfirst(isequal(SPICE_DF.Name[i]),CurrentDF.Name)
+
+            SPICE_DF.Dissipation[i] = abs(CurrentDF.Current[TmpIndex])*abs(CurrentDF.ΔV[TmpIndex])*lossTangent #Power = Total apparent power*tandδ
+            SPICE_DF.TempRise[i]    = Θc*SPICE_DF.Dissipation[i]
+            SPICE_DF.Drift[i]       = (1 + Θc*SPICE_DF.Dissipation[i]*TCc)
+            dVal = SPICE_DF.Value[i]*δ
+            SPICE_DF.Value[i]       = SPICE_DF.Value[i]-dVal #Subtract val because they lower capacitance as heat is applied
+            NewCurrResults =[ inv(SPICE_DF2Matrix_ω(SPICE_DF,2*π*DriveFreq,InputList))*inputs]
+            NewCurrResults = hcat(NewCurrResults...)
+        
+            NewCurrentDF = getElementCurrents(SPICE_DF,NewCurrResults,DriveFreq)
+            PostHeatCurrent = NewCurrentDF.Current[CurrentElIndex]
+        
+            SPICE_DF.MagDriftPercent[i] = abs((PostHeatCurrent - BaselineCurrent) / PostHeatCurrent)/δ
+            SPICE_DF.Value[i]       =  SPICE_DF.Value[i]+dVal
+
+        end
+    end
+
+    
+   
+
+
+
+    return SPICE_DF
+end

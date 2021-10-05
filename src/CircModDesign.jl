@@ -8,6 +8,11 @@ include("StrayCap.jl")
 include("LitzACResist.jl")
 include("InductanceCalc.jl")
 include("MakeSolenoid.jl")
+include("RunAnalysis.jl")
+include("SPICE2Matrix.jl")
+include("CoupledMagnetics.jl")
+include("ThermalModeling.jl")
+
 
 export  PlotImpedanceTransformList,
         BiotSav,
@@ -32,7 +37,13 @@ export  PlotImpedanceTransformList,
         ToroidOptimizer,
         Length2Resist,
         FieldMapPointPath,
-        CompareD_Circ_Rect_Toroid
+        CompareD_Circ_Rect_Toroid,
+        GetElementVal,
+        UpdateElementVal!,
+        UpdateElementESR!,
+        SPICE_DF2Matrix_ω,
+        PipeFlow
+
 
 
 # Write your package code here.

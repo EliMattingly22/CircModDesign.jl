@@ -1,4 +1,4 @@
-* C:\Users\RFLab\.julia\dev\CircModDesign.jl\src\Filter_Archetype_1.asc
+* C:\Users\elima\.julia\dev\CircModDesign\src\Filter_Archetype_1.asc
 V1 N011 0 AC 1
 LFilt1 N002 N001 100u Rser=100m
 CLFilt_C1 N003 N002 400n

@@ -54,11 +54,13 @@ function DesignDriveFilter(
     PlotFTs = true,
     VSrc = 2,
     DetermineFreq = false,
-    AddNotchFreq = nothing
+    AddNotchFreq = nothing,
+    FilterZ = TargetZ,
+    RDampVal = FilterZ
 )
 
 
-    ZeroVal = 1e-9 #Some cases I wanted to try having no zero circuit elements
+    ZeroVal = 1e-9 #There are issues with zero-valued components
     ωDr = 2 * π * DriveFreq
     ZDrive =
         RDrive * NumDriveElements +
@@ -112,8 +114,10 @@ function DesignDriveFilter(
         ωDr = 2*π*DriveFreq
         println("Determined Q to be $(round(Q))")
         println("Determined drive freq. to be $(round(DriveFreq)) Hz")
+        ZSer = 1*im * ωDr*LDrive * NumDriveElements -  1*im /(ωDr* CDrive / NumDriveElements) +RDrive* NumDriveElements
+        YSer = 1/ZSer
 
-        CParAct = 1 / (ωDr*Xs)
+        CParAct = abs.(imag(YSer))/ωDr
         LTee_2 = ZeroVal
         LTee_2_ESR = ZeroVal
         LTee_1 = ZeroVal
@@ -126,7 +130,7 @@ function DesignDriveFilter(
     println("SerCap =  $(round(SerCap*1e6;sigdigits=3))μF ")
 
 
-    (LFilt, CFilt) = Butterworth_2(TargetZ, DriveFreq)
+    (LFilt, CFilt) = Butterworth_2(FilterZ, DriveFreq)
     LFiltMatch_C = findResPair(LFilt, DriveFreq)
     CFiltMatch_L = findResPair(CFilt, DriveFreq)
 
@@ -146,13 +150,21 @@ function DesignDriveFilter(
 
     if ~(AddNotchFreq===nothing)
         LNotch, CNotch, LNotch_Tune = makeNotchSection(AddNotchFreq, DriveFreq, TargetZ;LVal = 100e-6)
+        LNotch_Geom =
+                ToroidOptimizer(WireDiam, LNotch; CuFillFactor = WireFillFac)
+        LNotch_ESR = LNotch_Geom.DCore.Resistance
+        LNotch_Tune_Geom =
+                ToroidOptimizer(WireDiam, LNotch_Tune; CuFillFactor = WireFillFac)
+        LNotch_Tune_ESR = LNotch_Tune_Geom.DCore.Resistance
     else
         LNotch = 10
         CNotch = 1e-12
         LNotch_Tune = 1e-12
+        LNotch_ESR = 1e-3
+        LNotch_Tune_ESR = 1e-3
     end
 
-    AmpsPerVolt = CircModel_SPICE(DriveFreq, VSrc,
+    CurrentVec, Results, SPICE_DF,inputs,InputList,FreqList = CircModel_SPICE(DriveFreq, VSrc,
     1e-3,
     RDrive,
     NumDriveElements,
@@ -171,9 +183,15 @@ function DesignDriveFilter(
     CFilt,
     CFiltMatch_L,
     LNotch,
+    LNotch_ESR,
     CNotch,
-    LNotch_Tune;
-    PlotOn = PlotFTs)
+    LNotch_Tune,
+    LNotch_Tune_ESR;
+    PlotOn = PlotFTs,
+    RDampVal = RDampVal)
+
+    return DriveFreq, CurrentVec, Results, SPICE_DF,inputs,InputList,FreqList
+
 end
 
 
@@ -197,18 +215,21 @@ function CircModel_SPICE(DriveFreq, VSrc,
     CFilt,
     CFiltMatch_L,
     LNotch,
+    LNotch_ESR,
     CNotch,
-    LNotch_Tune;
+    LNotch_Tune,
+    LNotch_Tune_ESR;
     PlotOn = true,
-    FreqList = 1000:100:100e3,
-    ArchetypeNetFileName = nothing)
+    FreqList = 1000:10:100e3,
+    ArchetypeNetFileName = nothing,
+    RDampVal = nothing)
 
 
 
 
     if ArchetypeNetFileName === nothing
 
-        ArchetypeNetFileName = joinpath(dirname(pathof(CircModDesign)),"Filter_Archetype_1.net")
+        ArchetypeNetFileName = joinpath(dirname(pathof(CircModDesign)),"Filter_Archetype_Damped_2.net")
 
     end
     SPICE_DF,NodeList,InputList,NumVSources = SPICE2Matrix(ArchetypeNetFileName)
@@ -216,6 +237,8 @@ function CircModel_SPICE(DriveFreq, VSrc,
 
     UpdateElementVal!(SPICE_DF,"LNotch_Tune",LNotch_Tune)
     UpdateElementVal!(SPICE_DF,"LNotch",LNotch)
+    UpdateElementESR!(SPICE_DF,"LNotch_Tune",LNotch_Tune_ESR)
+    UpdateElementESR!(SPICE_DF,"LNotch",LNotch_ESR)
     UpdateElementVal!(SPICE_DF,"CNotch",CNotch)
 
     UpdateElementVal!(SPICE_DF,"LFilt1",LFilt)
@@ -240,6 +263,18 @@ function CircModel_SPICE(DriveFreq, VSrc,
     UpdateElementVal!(SPICE_DF,"LTee2",LTee_2)
     UpdateElementESR!(SPICE_DF,"LTee2",LTee_2_ESR)
 
+
+    if ~(RDampVal===nothing)
+
+        UpdateElementVal!(SPICE_DF,"LDamp",LFilt)
+        UpdateElementESR!(SPICE_DF,"LDamp",LFilt1_ESR)
+        UpdateElementVal!(SPICE_DF,"CDamp",LFiltMatch_C)
+        UpdateElementVal!(SPICE_DF,"RDamp2",RDampVal)
+        UpdateElementVal!(SPICE_DF,"RDamp1",RDampVal)
+
+    end
+
+
     inputs = zeros(length(InputList))
     inputs[end-(NumVSources-1):end] .= 1
 
@@ -256,15 +291,17 @@ function CircModel_SPICE(DriveFreq, VSrc,
     end
 
     CurrentVec = VSrc.* plotACElCurrent(SPICE_DF,FreqList,Results,"LDrive")
+    
     if PlotOn
         pygui(true)
         semilogy(FreqList,abs.(CurrentVec[:]))
+        
         xlabel("Frequency, Hz")
         ylabel("Current in LDrive")
     end
 
     getElementCurrents(SPICE_DF,Results,DriveFreq)
-    return CurrentVec, Results, SPICE_DF,inputs
+    return CurrentVec, Results, SPICE_DF,inputs,InputList,FreqList
 end
 
 
@@ -703,4 +740,39 @@ function CircModel_MatchingTFilt(DriveFreq, VSrc,
 
     println("Tx current per $VSrc Volts is $(round(AmpsPerVolt,sigdigits=3)) Amps")
     return AmpsPerVolt
+end
+
+
+
+function findMinima_Bounds(x,y;StartVal=nothing,StopVal=nothing)
+
+
+
+    if !(StartVal===nothing)
+        StartIndex = minimum(findall(x .>= StartVal))
+    else
+        StartIndex = 1
+    end
+
+    if !(StopVal===nothing)
+        StopIndex = maximum(findall(x .<= StopVal))
+    else
+        StopIndex = length(x)
+    end
+
+    
+    xSubset = x[StartIndex:StopIndex]
+    ySubset = y[StartIndex:StopIndex]
+    FirstDiff = diff(ySubset)
+    SecondDiff = diff(FirstDiff)
+    Tmp = SecondDiff .< 0
+    push!(Tmp,1)
+    FirstDiff[Tmp] .= 1000 #Only look at values where the second derivative is positive
+
+    minIndex = findfirst(isequal(minimum(abs.(FirstDiff))),abs.(FirstDiff))
+
+    Min_x = xSubset[minIndex]
+    Min_y = ySubset[minIndex]
+    return Min_x, Min_y
+
 end
