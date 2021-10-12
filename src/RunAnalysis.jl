@@ -372,7 +372,7 @@ function DetermineComponentsTempCoeffs(SPICE_DF,InputList,NumVSources,DriveFreq 
     SPICE_DF.Drift = zeros(length(SPICE_DF.Name))
     SPICE_DF.TempRise = zeros(length(SPICE_DF.Name))
     SPICE_DF.Dissipation = zeros(length(SPICE_DF.Name))
-    SPICE_DF.MagDriftPercent = zeros(length(SPICE_DF.Name))
+    SPICE_DF.DriftCoeff = zeros(length(SPICE_DF.Name))
     for i in 1:length(SPICE_DF.Name)
 
         if SPICE_DF.Type[i] =='R'
@@ -391,7 +391,7 @@ function DetermineComponentsTempCoeffs(SPICE_DF,InputList,NumVSources,DriveFreq 
             NewCurrentDF = getElementCurrents(SPICE_DF,NewCurrResults,DriveFreq)
             PostHeatCurrent = NewCurrentDF.Current[CurrentElIndex]
         
-            SPICE_DF.MagDriftPercent[i] = abs((PostHeatCurrent - BaselineCurrent) / PostHeatCurrent)/δ
+            SPICE_DF.DriftCoeff[i] = abs((PostHeatCurrent - BaselineCurrent) / BaselineCurrent)/δ
             SPICE_DF.Value[i]       =  SPICE_DF.Value[i]-dVal
 
         elseif SPICE_DF.Type[i] =='L'
@@ -409,7 +409,7 @@ function DetermineComponentsTempCoeffs(SPICE_DF,InputList,NumVSources,DriveFreq 
             NewCurrentDF = getElementCurrents(SPICE_DF,NewCurrResults,DriveFreq)
             PostHeatCurrent = NewCurrentDF.Current[CurrentElIndex]
         
-            SPICE_DF.MagDriftPercent[i] = abs((PostHeatCurrent - BaselineCurrent) / PostHeatCurrent)/δ
+            SPICE_DF.DriftCoeff[i] = abs((PostHeatCurrent - BaselineCurrent) / BaselineCurrent)/δ
 
             SPICE_DF.ESR[i]       =  SPICE_DF.ESR[i]-dVal
 
@@ -431,7 +431,7 @@ function DetermineComponentsTempCoeffs(SPICE_DF,InputList,NumVSources,DriveFreq 
             NewCurrentDF = getElementCurrents(SPICE_DF,NewCurrResults,DriveFreq)
             PostHeatCurrent = NewCurrentDF.Current[CurrentElIndex]
         
-            SPICE_DF.MagDriftPercent[i] = abs((PostHeatCurrent - BaselineCurrent) / PostHeatCurrent)/δ
+            SPICE_DF.DriftCoeff[i] = abs((PostHeatCurrent - BaselineCurrent) / BaselineCurrent)/δ
             SPICE_DF.Value[i]       =  SPICE_DF.Value[i]+dVal
 
         end

@@ -1,8 +1,8 @@
 ## Biot savart law
-using LinearAlgebra
-using PyPlot
-using MPI_Tools
-using Interpolations
+# using LinearAlgebra
+# using PyPlot
+# using MPI_Tools
+# using Interpolations
 
 VecDist(X::Array) = [ X[2,1]-X[1,1], X[2,2]-X[1,2] , X[2,3]-X[1,3]]
 #X is the 2 coordinates to take distance between in format of [x₁,y₁,z₁;x₂,y₂,z₂]
@@ -58,7 +58,8 @@ function MakeEllip(r₁,r₂;Center = [0,0,0],NPts=100)
     X,Y,Z = ([r₁ .* cos.(I/NPts *2*π) for I in 1:NPts].+Center[1],
              [r₂ .* sin.(I/NPts *2*π) for I in 1:NPts].+Center[2],
              [0 for I in 1:NPts].+Center[3])
-             Coords = hcat(X,Y,Z)
+    
+    Coords = hcat(X,Y,Z)
 
 end
 
@@ -192,4 +193,17 @@ function MakeRectPointPath(Coords;NElement = 50, PlotOn=false)
     end
     return PointPath
 
+end
+
+
+function WireNearField_B(r,Wire_R;I=1)
+    μ₀ = 4*π*1e-7
+    if r<Wire_R
+        B = μ₀*r*I / (2*π*Wire_R^2)
+    elseif r==Wire_R
+        B = μ₀*I / (2*π*Wire_R)
+    else
+        B = μ₀*I / (2*π*r)
+    end
+    return B
 end

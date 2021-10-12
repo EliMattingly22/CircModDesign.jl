@@ -1,4 +1,17 @@
 module CircModDesign
+using LinearAlgebra
+using PyPlot
+using MPI_Tools
+using Interpolations
+using Optim
+using Elliptic
+using Struve
+using SpecialFunctions
+
+
+using FFTW
+using ACME
+using ElectricalEngineering
 
 include("Filter_Designer.jl")
 include("NoiseModeling.jl")
@@ -12,6 +25,7 @@ include("RunAnalysis.jl")
 include("SPICE2Matrix.jl")
 include("CoupledMagnetics.jl")
 include("ThermalModeling.jl")
+include("Toroid_Inductance.jl")
 
 
 export  PlotImpedanceTransformList,

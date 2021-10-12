@@ -1,4 +1,4 @@
-using LinearAlgebra
+# using LinearAlgebra
 include("FieldCalc.jl")
 include("LitzACResist.jl")
 include("StrayCap.jl")
@@ -192,3 +192,6 @@ function EvalField_Centered(
 
     return sum(FieldCentered)
 end
+
+
+

@@ -1,7 +1,7 @@
-using Optim
-using Elliptic
-using Struve
-using SpecialFunctions
+# using Optim
+# using Elliptic
+# using Struve
+# using SpecialFunctions
 
 function CalcFlux(Ae,Le,μr,N,V,ω)
     μ0 = 4*pi*1e-7
@@ -43,6 +43,96 @@ function RunMagnetizingFlux(WireD,CoreID,Ae,Le,AL,NRatio,VPk,ω)
     BCore(mT)       = $(round(BCore*1e3;sigdigits=3))
     ")
 end
+
+
+
+"""
+Calculate Magnetizing Inductance, units in meters
+"""
+function MagInductance(Aₑ,Lₑ,N,μᵣ)
+    μ₀ = 4*pi*1e-7
+    L = N^2* μᵣ*μ₀ * Aₑ /Lₑ
+    return L
+end
+
+
+"""
+Calculate Magnetizing Inductance, units in meters
+"""
+function MagInductance_Gap(Aₑ,Lₑ,N,μᵣ,LGap)
+    μ₀ = 4*pi*1e-7
+    ℛgap = LGap/(μ₀*Aₑ)#\scrR
+    ℛcore = Lₑ/(μ₀*μᵣ*Aₑ)#\scrR
+    
+    L = N^2 / (ℛcore+ℛgap)
+
+    return L
+end
+
+function MagnetizingCurrent(L,f)
+    return 2*π*f*L
+end
+""""
+determine the resistance of a winding on a rectangular core with N layers of copper film winding
+
+N is the number of layers
+t the the thickness of copper
+L is the length of the core 
+w is the width of the core (Inner dimension)
+H is the height of the core
+ρ is the resistivity of copper
+"""
+function FilmCoreResist_Rect(N,t,L,w,H,ρ)
+    Length = N* 2*( (w+N/2*t) + (L+N/2*t))
+    println(Length)
+    R = ρ*Length / (H*t)
+    return R
+end
+
+""""
+determine the resistance of a winding on a rectangular core with Nₗ layers and Nₜ turns of copper circular wire
+
+Nₗ is the number of layers
+Nₜ is the number of turns
+D the the diamter of copper wire
+L is the length of the core 
+w is the width of the core (Inner dimension)
+H is the height of the core
+ρ is the resistivity of copper
+"""
+function WireWoundCoreResist_Rect(Nₗ,Nₜ,D,L,w,H,ρ)
+    Length = Nₜ* 2*( (w+Nₗ/2*D) + (L+Nₗ/2*D))
+    println(Length)
+    R = ρ*Length / (π/4*D^2)
+    return R
+end
+
+
+"""
+The minimum allowable window area given some current density J₀, Maximum current, and turns (N)
+"""
+function MinWindowArea(Imax, J₀,N)
+    return Imax*N/J₀
+end
+
+function MinWindowArea(Vmax,Imax, BMax, Acore,f, J₀)
+    return Imax*MinTurns(Vmax, BMax, Acore,f) /J₀
+end
+
+function MinTurns(Vmax, BMax, Acore,f)
+    return Vmax*√2 /(2*π*f* BMax * Acore)
+end
+
+
+
+
+
+
+
+
+
+
+
 
 
 """
@@ -99,4 +189,6 @@ Equation 10,Ref. `Calculation of self and mutual impedances between sections of 
 function κFunk(a,r,z)
     √(4*a*r ./ (z^2 + (a+r)^2))
 end
+
+
 
