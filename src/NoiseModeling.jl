@@ -48,6 +48,12 @@ function PlotNoiseFigure_VsR(en,in;YLims = [1 10])
 
 end
 
+"""
+This function takes in a vector of measured noise (in V/√Hz) and the list of resistors that were used for termination, and estimates the preamp's en,in
+    Inputs: RVals, vector of resistances
+            MeasNoise, vector of the same length of measured noise values V/√Hz at the output. 
+
+"""
 function DetermineNoise(RVals::Vector,MeasNoise::Vector)
     ## This function takes in a vector of measured noise (in V/√Hz) and the
     ## List of resistors that were used for termination, and estimates the preamp's en,in

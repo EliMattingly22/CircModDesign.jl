@@ -21,7 +21,7 @@ This function takes in the following (required) variables:
     NLayers is the number of interior test point layers
     WireRadius is passed to Mutual_L_TwoLoops and (slightly) changes the way test points are found
 
-
+    
 """
 function eval_Induct_DToroid(IRad,ORad,N;DownSampleFac = 1,PlotOn=false,NPtsPath = 100,NLayers = 20,WireRadius=nothing)
     ΘperTurn = 360/N
@@ -35,15 +35,24 @@ function eval_Induct_DToroid(IRad,ORad,N;DownSampleFac = 1,PlotOn=false,NPtsPath
     if PlotOn
         scatter3D(PointPath_SingleLoop[:,1],PointPath_SingleLoop[:,2],PointPath_SingleLoop[:,3])
     end
-    for i in 1:(N-1)
+    NewPP = Rot_PointPath_Y(PointPath_SingleLoop, ΘperTurn)
+    if PlotOn
+        scatter3D(NewPP[:,1],NewPP[:,2],NewPP[:,3])
+    end
+    Mut,Self,SavedBSelfArr = Mutual_L_TwoLoops(PointPath_SingleLoop,NewPP;DownSampleFac = DownSampleFac,MeasLayers = NLayers,MinThreshold=1e-10,WireRadius=WireRadius,IncludeWireInduct = true,SaveΦ₁ = true)
+    LMat .+= Self.*OffDiagOnes(N,1)
+    LMat .+= Mut.*OffDiagOnes(N,2)
+    LMat .+= Mut.*OffDiagOnes(N,N)
+    for i in 2:Int(ceil((N-1)/2))
         NewPP = Rot_PointPath_Y(PointPath_SingleLoop, i*ΘperTurn)
         if PlotOn
             scatter3D(NewPP[:,1],NewPP[:,2],NewPP[:,3])
         end
-        Mut,Self = Mutual_L_TwoLoops(PointPath_SingleLoop,NewPP,SliceArea;DownSampleFac = DownSampleFac,MeasLayers = NLayers,MinThreshold=1e-10,WireRadius=WireRadius,IncludeWireInduct = true)
+        Mut = Mutual_L_TwoLoops(PointPath_SingleLoop,NewPP,SavedBSelfArr;DownSampleFac = DownSampleFac,MeasLayers = NLayers,MinThreshold=1e-10,WireRadius=WireRadius)
         println(Mut)
-        LMat[i,i] = Self
+        
         LMat .+= Mut.*OffDiagOnes(N,i+1)
+        LMat .+= Mut.*OffDiagOnes(N,N-(i-1))
         
         println(i)
     end
@@ -89,7 +98,7 @@ function eval_Induct_CircToroid(IRad,ORad,N;DownSampleFac = 1,
         if PlotOn
             scatter3D(NewPP[:,1],NewPP[:,2],NewPP[:,3])
         end
-        Mut,Self = Mutual_L_TwoLoops(PointPath_SingleLoop,NewPP,SliceArea;DownSampleFac = DownSampleFac,MeasLayers = NLayers,MinThreshold=1e-10,WireRadius=WireRadius,IncludeWireInduct = true)
+        Mut,Self = Mutual_L_TwoLoops(PointPath_SingleLoop,NewPP;DownSampleFac = DownSampleFac,MeasLayers = NLayers,MinThreshold=1e-10,WireRadius=WireRadius,IncludeWireInduct = true)
         println(Mut)
         LMat[i,i] = Self
         LMat .+= Mut.*OffDiagOnes(N,i+1)
@@ -117,7 +126,7 @@ This function takes in the following (required) variables:
     SelfInductScaleFactor is, as the name implies, a small ``fudge factor'' if you want to artificially scale up the self-inductance. This may be useful if there is a known offset to account for. 
 
 """
-function eval_Induct_DToroidTransformer(IRad,ORad,N₁,N₂;DownSampleFac = 1,PlotOn=false,NPtsPath = 100,NLayers = 20,SelfInductScaleFactor = 1)
+function eval_Induct_DToroidTransformer(IRad,ORad,N₁,N₂;DownSampleFac = 1,PlotOn=false,NPtsPath = 100,NLayers = 20,SelfInductScaleFactor = 1,UseAnalyticalSelfL=false)
     if PlotOn
         pygui(true)
         gcf()
@@ -139,7 +148,12 @@ function eval_Induct_DToroidTransformer(IRad,ORad,N₁,N₂;DownSampleFac = 1,Pl
     if PlotOn
         scatter3D(PointPath_SingleLoop[:,1],PointPath_SingleLoop[:,2],PointPath_SingleLoop[:,3];color="b")
     end
-    for i in 1:(N-1)
+    NewPP = Rot_PointPath_Y(PointPath_SingleLoop, ΘperTurn)
+    Mut,Self,SavedBSelfArr = Mutual_L_TwoLoops(PointPath_SingleLoop,NewPP;DownSampleFac = DownSampleFac,MeasLayers = NLayers,MinThreshold=1e-10,IncludeWireInduct = true,SaveΦ₁ = true)
+    LMat .+= Self.*OffDiagOnes(N,1)
+    LMat .+= Mut.*OffDiagOnes(N,2)
+    LMat .+= Mut.*OffDiagOnes(N,N)
+    for i in 1:Int(ceil((N-1)/2))
         isPrimary = (NIndexingArray[i+1,2]==1)
         NewPP = Rot_PointPath_Y(PointPath_SingleLoop, i*ΘperTurn)
         if PlotOn
@@ -149,10 +163,11 @@ function eval_Induct_DToroidTransformer(IRad,ORad,N₁,N₂;DownSampleFac = 1,Pl
                 scatter3D(NewPP[:,1],NewPP[:,2],NewPP[:,3];color="r",s=2)
             end
         end
-        Mut,Self = Mutual_L_TwoLoops(PointPath_SingleLoop,NewPP,SliceArea;DownSampleFac = DownSampleFac,MeasLayers = NLayers,MinThreshold=1e-10,WireRadius=0.0005)
+        Mut = Mutual_L_TwoLoops(PointPath_SingleLoop,NewPP,SavedBSelfArr;DownSampleFac = DownSampleFac,MeasLayers = NLayers,MinThreshold=1e-10)
         println(Mut)
-        LMat[i,i] = Self
+        
         LMat .+= Mut.*OffDiagOnes(N,i+1)
+        LMat .+= Mut.*OffDiagOnes(N,N-(i-1))
         
         println(i)
     end
@@ -161,6 +176,11 @@ function eval_Induct_DToroidTransformer(IRad,ORad,N₁,N₂;DownSampleFac = 1,Pl
     L₁₁ = LMat[Primary_Self] .*SelfInductScaleFactor
     L₂₂ = LMat[Secondary_Self] .*SelfInductScaleFactor
     LMut = LMat[MutualInduct]
+    if UseAnalyticalSelfL
+        println("Using analyical formula for self inductance. Make sure ORad/IRad is an integer")
+        L₁₁ = DCore_DetermineIdealInduct(IRad*2,N₁,Int(round(ORad/IRad)))
+        L₂₂ = DCore_DetermineIdealInduct(IRad*2,N₂,Int(round(ORad/IRad)))
+    end
     Lμ = sum(LMut)*N₁/N₂ / 2 #THe division by 2 is due to the double-counting of M in a symmetric matrix
     LLeak1 = sum(L₁₁) - Lμ
     LLeak2 = sum(L₂₂) - Lμ*(N₂/N₁)^2
@@ -225,25 +245,40 @@ This function takes in two point paths and simulates the self inductance of the 
     
 
 """
-function Mutual_L_TwoLoops(PP₁,PP₂,SliceArea  ;DownSampleFac = 1,
+function Mutual_L_TwoLoops(PP₁,PP₂;DownSampleFac = 1,
     MeasLayers = 55,#Number of concentric layers to calc field
     MinThreshold = 0.000001,
-    WireRadius = nothing,
-    IncludeWireInduct = false
+    WireRadius = 0.001,
+    IncludeWireInduct = false,
+    SaveΦ₁ = false
     )
 
-    TestPoints, Weights = PP_2_TestPoints_drdΘ(PP₁,MeasLayers;DownSampleFac = DownSampleFac,WireRadius=WireRadius)
+    TestPoints, Weights = PP_2_TestPoints_drdΘ(PP₁,MeasLayers,WireRadius;DownSampleFac = DownSampleFac)
     PtsPerLayer = length(PP₁[:,1])
     NPtsPerSlice = MeasLayers*PtsPerLayer  
     SliceArea = sum(Weights) 
         Weights = Weights / sum(Weights)*NPtsPerSlice  #normalizing
+        if SaveΦ₁
+            B_Self = zeros(length(TestPoints[:,1]) ,3)
+            Φ₁₁ = 0.
+        else
+            Φ₁₁ = 0.
+        end
     
-    Φ₁₁ = 0.  
     Φ₂₁ = 0.
     for i in 1:length(TestPoints[:,1]) 
-        B_Self =  BiotSav(PP₁,TestPoints[i,:];MinThreshold) .* Weights[i].*SliceArea ./NPtsPerSlice 
-        Φ₁₁ += √(sum(B_Self.^2))
-        Φ₂₁ += sum(B_Self .* BiotSav(PP₂,TestPoints[i,:];MinThreshold) .* Weights[i].*SliceArea ./NPtsPerSlice) /    √(sum(B_Self.^2))
+         
+        if SaveΦ₁
+            B_Self[i,:] =  BiotSav(PP₁,TestPoints[i,:];MinThreshold) .* Weights[i].*SliceArea ./NPtsPerSlice
+            Φ₁₁ += √( sum( B_Self[i,:].^2 ) )
+            Φ₂₁ += sum(B_Self[i,:]  .* BiotSav(PP₂,TestPoints[i,:];MinThreshold) .* Weights[i].*SliceArea ./NPtsPerSlice) /    √(sum(B_Self[i,:] .^2))
+        else
+            B_Self =  BiotSav(PP₁,TestPoints[i,:];MinThreshold) .* Weights[i].*SliceArea ./NPtsPerSlice
+            Φ₁₁ += √(sum(B_Self.^2))
+            
+            Φ₂₁ += sum(B_Self .* BiotSav(PP₂,TestPoints[i,:];MinThreshold) .* Weights[i].*SliceArea ./NPtsPerSlice) /    √(sum(B_Self.^2))
+        end
+        
        
     end
 
@@ -257,9 +292,36 @@ function Mutual_L_TwoLoops(PP₁,PP₂,SliceArea  ;DownSampleFac = 1,
         Φ₁₁ += WireInductance
     end
 
-    return Φ₂₁, Φ₁₁
+    return Φ₂₁, Φ₁₁,B_Self
 
 end
+
+
+function Mutual_L_TwoLoops(PP₁,PP₂,PriorBSelf;DownSampleFac = 1,
+    MeasLayers = 55,#Number of concentric layers to calc field
+    MinThreshold = 0.000001,
+    WireRadius = 0.001,
+   
+    )
+
+    TestPoints, Weights = PP_2_TestPoints_drdΘ(PP₁,MeasLayers,WireRadius;DownSampleFac = DownSampleFac)
+    PtsPerLayer = length(PP₁[:,1])
+    NPtsPerSlice = MeasLayers*PtsPerLayer  
+    SliceArea = sum(Weights) 
+        Weights = Weights / sum(Weights)*NPtsPerSlice  #normalizing
+    
+    Φ₂₁ = 0.
+    for i in 1:length(TestPoints[:,1]) 
+        Φ₂₁ += sum(PriorBSelf[i,:] .* BiotSav(PP₂,TestPoints[i,:];MinThreshold) .* Weights[i].*SliceArea ./NPtsPerSlice) /    √(sum(PriorBSelf[i,:].^2))
+       
+    end
+
+    
+
+    return Φ₂₁
+
+end
+
 
 
 
@@ -369,9 +431,9 @@ function Self_L_CircLoop(D  ; DownSampleFac=1,
         end
         DistBetweenLayers = D/2 / MeasLayers
         if DistBetweenLayers>WireRadius
-            TestPoints, Weights = PP_2_TestPoints_drdΘ(PP₁,MeasLayers;DownSampleFac = DownSampleFac,WireRadius = WireRadius)
+            TestPoints, Weights = PP_2_TestPoints_drdΘ(PP₁,MeasLayers,WireRadius;DownSampleFac = DownSampleFac)
         else
-            TestPoints, Weights = PP_2_TestPoints_drdΘ(PP₁,MeasLayers;DownSampleFac = DownSampleFac,)
+            TestPoints, Weights = PP_2_TestPoints_drdΘ(PP₁,MeasLayers,WireRadius;DownSampleFac = DownSampleFac)
         end
         PtsPerLayer = length(PP₁[:,1])
         NPtsPerSlice = MeasLayers*PtsPerLayer   
@@ -465,37 +527,72 @@ This function takes in a point path and produces test points and weights for eac
     Inputs are a point path and the number of test point layers. A ``layer'' is just a concentric set of points to the point path with a smaller radius. Using this sampling approach gives an uneven distribution of points, but ensures they are all on the interior. 
 
 """
-function PP_2_TestPoints_drdΘ(PP,Layers = 10; DownSampleFac::Int=1,WireRadius = nothing)
+function PP_2_TestPoints_drdΘ(PP,Layers = 10, WireRadius=0.001; DownSampleFac::Int=1)
+    
     PP = PP[1:DownSampleFac:end,:]
     PP_Mean = [sum(PP[:,i]) / length(PP[:,i]) for i in 1:3]
     PP_Cent = hcat([PP[:,1] .- PP_Mean[1] , PP[:,2] .- PP_Mean[2], PP[:,3] .- PP_Mean[3]]...)
 
-    TestPoints_Cent = vcat([PP_Cent .* (NLayer / (Layers+1))  for NLayer in 1:Layers]...)
-
-    if ~(WireRadius===nothing)
-        println("Adding inner test layer")
-        MaxDist = maximum(sqrt.(sum(PP_Cent.^2;dims=2)))
-        TestPoints_Cent = vcat(TestPoints_Cent, PP_Cent .* ((MaxDist-WireRadius) / MaxDist))
-        TestPoints_Cent = vcat(TestPoints_Cent, PP_Cent .* ((WireRadius) / MaxDist))
-    end
-    TestPoints = hcat([TestPoints_Cent[:,1] .+ PP_Mean[1] , TestPoints_Cent[:,2] .+ PP_Mean[2], TestPoints_Cent[:,3] .+ PP_Mean[3]]...)
-
+    TestPoints_Cent = vcat([PP_Cent .* √(NLayer / (Layers+1))  for NLayer in 1:Layers]...)
+    TestPoints_Cent = reverse(TestPoints_Cent;dims=1)
+    MaxDist = maximum(sqrt.(sum(PP_Cent.^2;dims=2)))
+    TestPoints_Cent = vcat(reverse(PP_Cent .* ((MaxDist-WireRadius) / MaxDist);dims=1),TestPoints_Cent)
+    Layers = Layers+1 #Because adding an additional layer near wire
+   
     TestPoints_Polar = Cart2Polar(TestPoints_Cent)
     PP_Cent_Polar = Cart2Polar(PP_Cent)
-    dΘ = abs.(TestPoints_Polar[:,2] .- circshift(TestPoints_Polar[:,2],1))
-    dΘ = minimum(hcat(dΘ,  abs.(TestPoints_Polar[:,2] .- circshift(TestPoints_Polar[:,2],-1)));dims=2)
+    dΘ = zeros(length(TestPoints_Polar[:,1]),1)
+    dr = similar(dΘ)
+
+    # dΘ = abs.(TestPoints_Polar[:,2] .- circshift(TestPoints_Polar[:,2],1))
+    # dΘ = minimum(hcat(dΘ,  abs.(TestPoints_Polar[:,2] .- circshift(TestPoints_Polar[:,2],-1)));dims=2)
+    L = length(PP_Cent[:,1])
     
-    
-    if ~(WireRadius===nothing)
-        dr = repeat(PP_Cent_Polar[:,1] ./ (Layers+1),Layers,1)
-        dr = vcat(dr,(PP_Cent_Polar[:,1] ./ (Layers)/2 ))
-        dr = vcat(dr,(PP_Cent_Polar[:,1] ./ (Layers)/2 ))
-    else
-        dr = repeat(PP_Cent_Polar[:,1] ./ (Layers+.5),Layers,1)
+    Counter = 0
+    for j in 1:Layers
+        
+        for k in 1:L
+            Counter+=1
+
+            if k==1
+                dΘ[Counter] = AbsAngBetw(TestPoints_Polar[Counter,2],TestPoints_Polar[Counter+1,2])
+                
+            elseif k==L
+                dΘ[Counter] = AbsAngBetw(TestPoints_Polar[Counter,2],TestPoints_Polar[Counter-1,2])
+            else
+                dΘ[Counter] = AbsAngBetw(TestPoints_Polar[Counter-1,2],TestPoints_Polar[Counter+1,2])/2
+            end
+
+        end
+        StartInd = ((j-1)*L+1)
+        StopInd = j*L
+
+        StartInd2 = (j*L+1)
+        StopInd2 = (j+1)*L
+
+        
+        if j !== Layers
+            dr[StartInd : StopInd] = TestPoints_Polar[StartInd : StopInd,1] .- TestPoints_Polar[StartInd2 : StopInd2,1]
+        else
+            dr[StartInd : StopInd] = TestPoints_Polar[StartInd : StopInd,1]
+        end
     end
+
+    TestPoints = hcat([TestPoints_Cent[:,1] .+ PP_Mean[1] , TestPoints_Cent[:,2] .+ PP_Mean[2], TestPoints_Cent[:,3] .+ PP_Mean[3]]...)
+
     Weights = abs.(TestPoints_Polar[:,1] .* dr[:] .* dΘ[:])
-    
-    return TestPoints, Weights
+    r = TestPoints_Polar[:,1] 
+    return TestPoints, Weights,dr,dΘ,r
+end
+
+function AbsAngBetw(θ₁,θ₂)
+    if θ₁==θ₂
+        return 0.
+    elseif (abs(θ₁-θ₂)>π)
+        return (2*π - mod2pi(abs(θ₁-θ₂)))
+    else
+        return abs(θ₁-θ₂)
+    end
 end
 
 
