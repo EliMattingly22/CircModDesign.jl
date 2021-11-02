@@ -26,6 +26,7 @@ include("SPICE2Matrix.jl")
 include("CoupledMagnetics.jl")
 include("ThermalModeling.jl")
 include("Toroid_Inductance.jl")
+include("SkinProxLoss.jl")
 
 
 export  PlotImpedanceTransformList,
@@ -56,7 +57,13 @@ export  PlotImpedanceTransformList,
         UpdateElementVal!,
         UpdateElementESR!,
         SPICE_DF2Matrix_ω,
-        PipeFlow
+        PipeFlow,
+        OneWireLoss,
+        TwoWireLoss,
+        MultiWireProximity,
+        SeriesWireBundleLosses,
+        plot1DMagDiffusion
+
 
 
 

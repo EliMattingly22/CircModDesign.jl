@@ -207,3 +207,15 @@ function WireNearField_B(r,Wire_R;I=1)
     end
     return B
 end
+
+function DerivField(r,Wire_R=0.001;I=1)
+    μ₀ = 4*π*1e-7
+    if r<Wire_R
+        B = 0 ##Update later.
+    elseif r==Wire_R
+        B=0
+    else
+        B = -1*μ₀*I / (2*π*r^2)
+    end
+    return B
+end

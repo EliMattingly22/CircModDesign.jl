@@ -11,6 +11,61 @@ include("ToroidOptimizer.jl")
 
 
 """
+This function takes in similar inputs to DesignDriveFilter. It will iterate that function with varying matching impedances to minimize the expected drift in the current. 
+"""
+function DesignDriveFilter_OptimDrift(
+    LDrive,
+    RDrive,
+    TargetZ,
+    DriveFreq;
+    CDrive = 1e6,
+    NumDriveElements = 1,
+    WireDiam = 2e-3,
+    WireFillFac = 0.75,
+    PlotSrcR = TargetZ,
+    PlotFTs = true,
+    VSrc = 2,
+    DetermineFreq = false,
+    AddNotchFreq = nothing,
+    FilterZ = TargetZ,
+    RDampVal = FilterZ
+)
+
+    
+    
+    function WrapperFunk(Zin)
+    DriveFreq, CurrentVec, Results, SPICE_DF,inputs,InputList,FreqList = DesignDriveFilter(
+        LDrive,RDrive, Zin,DriveFreq;
+        CDrive = CDrive,
+        NumDriveElements = NumDriveElements,
+        WireDiam = WireDiam,
+        DetermineFreq=DetermineFreq,
+        AddNotchFreq = AddNotchFreq,
+        FilterZ = Zin)
+    
+        
+        CircModDesign.DetermineComponentsTempCoeffs(SPICE_DF,InputList,1,DriveFreq,"LDrive")
+        
+        return SPICE_DF.DriftCoeff[findfirst(isequal("CDrive"),SPICE_DF.Name)]
+    end
+
+    MinZ = optimize(WrapperFunk,10,15)
+
+    DriveFreq, CurrentVec, Results, SPICE_DF,inputs,InputList,FreqList = DesignDriveFilter(
+        LDrive,RDrive, MinZ.minimizer,DriveFreq;
+        CDrive = CDrive,
+        WireDiam = WireDiam,
+        DetermineFreq=DetermineFreq,
+        AddNotchFreq = AddNotchFreq,
+        FilterZ = MinZ.minimizer)
+    
+        DetermineComponentsTempCoeffs(SPICE_DF,InputList,1,DriveFreq,"LDrive")
+    return MinZ.minimizer, DriveFreq, CurrentVec, Results, SPICE_DF,inputs,InputList,FreqList
+end
+
+
+
+"""
 This function takes in  the following parameters:
 
     LDrive, drive coil inductance (H)
