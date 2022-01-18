@@ -1,17 +1,18 @@
 module CircModDesign
 using LinearAlgebra
 using PyPlot
-using MPI_Tools
+# using MPI_Tools
 using Interpolations
 using Optim
 using Elliptic
 using Struve
 using SpecialFunctions
-
-
 using FFTW
 using ACME
 using ElectricalEngineering
+using Gtk, DataFrames,PyPlot
+
+μ₀ = 4*π*1e-7
 
 include("Filter_Designer.jl")
 include("NoiseModeling.jl")
@@ -27,8 +28,8 @@ include("CoupledMagnetics.jl")
 include("ThermalModeling.jl")
 include("Toroid_Inductance.jl")
 include("SkinProxLoss.jl")
-
-
+include("FieldCalc.jl")
+include("Load_LTSpice_Net.jl")
 export  PlotImpedanceTransformList,
         BiotSav,
         MakeEllip,

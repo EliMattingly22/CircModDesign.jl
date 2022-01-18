@@ -13,6 +13,7 @@ function CalcFlux(Ae,Le,μr,N,V,ω)
     B = Flux/Ae
     return B
 end
+
 function CalcPermeability(AL,Ae,Le)
     #This function takes in the nominal inductance (inductance at one turn),effective length and area
     #And calculates the permeabily
@@ -127,68 +128,78 @@ end
 
 
 
+function MeasuredInductance2Params(ZₚSecₒ,ZₚSecₛ,ZₛPriₒ,ZₛPriₛ)
 
-
-
-
-
-
-
-
-"""
-Function to determine the leakage inductnace of a toroidal transformer
-Ref. `Calculation of self and mutual impedances between sections of tranformer windings`, Wilcox et al. IEE Proceedings, 1989
-
-
-"""
-function CalcLeakageInductance_Toroid()
-
-end
-"""
-Function to determine the leakage inductnace of a toroidal transformer
-Ref. `Calculation of self and mutual impedances between sections of tranformer windings`, Wilcox et al. IEE Proceedings, 1989
-
-
-"""
-function CalcLₖₘ(Nₖ,Nₘ,r,a,z)
-    μ₀ = 4*π*1e-7
-    κ =κFunk(a,r,z)
-    Lₖₘ = μ₀*Nₖ*Nₘ*√(r*a)*2/κ*(  (1 - κ^2/2) * Elliptic.K(κ) - Elliptic.E(κ) )
-
-end
-
-
-
-function Z₁₍ₖₘ₎(Nₖ,Nₘ,b,μᵣ,ω,λ,ρ)
-    
-    μ₁ = 4*π*1e-7 #for consistency with eqn. using 1 subscript
-    μₓ =4*π*1e-7*μᵣ
-    m = √(im*ω*μₓ/ρ)
-    Z = 1*im*ω*Nₖ*Nₘ *π*b^2/λ * (2*μₓ*besseli(1,m*b) / (m*b*besseli(0,m*b)) - μ₁)
+    ZₚEqiv_SecLoad(Zₗ1,Zₘ1,Zₗ2,N,RTerm) = Zₗ1+ Par(Zₘ1,(1 / N^2 * (Zₗ2+RTerm))) #Primary referred impedance with some secondary termination (RTerm)
+    ZₛEqiv_PriLoad(Zₗ1,Zₘ1,Zₗ2,N,RTerm) = Zₗ2+ N^2 * Par(Zₘ1,(Zₗ1+RTerm)) #Primary referred impedance with some secondary termination (RTerm)
     
 
-end
-
-"""
-Equation 12,Ref. `Calculation of self and mutual impedances between sections of tranformer windings`, Wilcox et al. IEE Proceedings, 1989
-"""
-function BigP₁(x,y,β)
-    (p₁(x) - p₁(y)) ./ (β.^2)
-
-end
+    Cost(Zₗ1,Zₘ1,Zₗ2,N) = abs((ZₚSecₒ - ZₚEqiv_SecLoad(Zₗ1,Zₘ1,Zₗ2,N,1e9)) + (ZₚSecₛ - ZₚEqiv_SecLoad(Zₗ1,Zₘ1,Zₗ2,N,0)) + 
+                         (ZₛPriₒ - ZₛEqiv_PriLoad(Zₗ1,Zₘ1,Zₗ2,N,1e9)) + (ZₛPriₛ - ZₛEqiv_PriLoad(Zₗ1,Zₘ1,Zₗ2,N,0)))
 
 
-function p₁(α)
-    π*α/2 * (bessely(0,α)*Struve.L(0, α)+bessely(1,α)*Struve.L(1, α))
+    CostVecIn(Vec) = Cost(Vec[1],Vec[2],Vec[3],Vec[4])
+    optimize(CostVecIn, [10.0 , 40.0, 10.0, 2.0])
+
+
 end
 
 
-"""
-Equation 10,Ref. `Calculation of self and mutual impedances between sections of tranformer windings`, Wilcox et al. IEE Proceedings, 1989
-"""
-function κFunk(a,r,z)
-    √(4*a*r ./ (z^2 + (a+r)^2))
-end
+
+# """
+# Function to determine the leakage inductnace of a toroidal transformer
+# Ref. `Calculation of self and mutual impedances between sections of tranformer windings`, Wilcox et al. IEE Proceedings, 1989
+
+
+# """
+# function CalcLeakageInductance_Toroid()
+
+# end
+# """
+# Function to determine the leakage inductnace of a toroidal transformer
+# Ref. `Calculation of self and mutual impedances between sections of tranformer windings`, Wilcox et al. IEE Proceedings, 1989
+
+
+# """
+# function CalcLₖₘ(Nₖ,Nₘ,r,a,z)
+#     μ₀ = 4*π*1e-7
+#     κ =κFunk(a,r,z)
+#     Lₖₘ = μ₀*Nₖ*Nₘ*√(r*a)*2/κ*(  (1 - κ^2/2) * Elliptic.K(κ) - Elliptic.E(κ) )
+
+# end
+
+
+
+# function Z₁₍ₖₘ₎(Nₖ,Nₘ,b,μᵣ,ω,λ,ρ)
+    
+#     μ₁ = 4*π*1e-7 #for consistency with eqn. using 1 subscript
+#     μₓ =4*π*1e-7*μᵣ
+#     m = √(im*ω*μₓ/ρ)
+#     Z = 1*im*ω*Nₖ*Nₘ *π*b^2/λ * (2*μₓ*besseli(1,m*b) / (m*b*besseli(0,m*b)) - μ₁)
+    
+
+# end
+
+# """
+# Equation 12,Ref. `Calculation of self and mutual impedances between sections of tranformer windings`, Wilcox et al. IEE Proceedings, 1989
+# """
+# function BigP₁(x,y,β)
+#     (p₁(x) - p₁(y)) ./ (β.^2)
+
+# end
+
+
+# function p₁(α)
+#     π*α/2 * (bessely(0,α)*Struve.L(0, α)+bessely(1,α)*Struve.L(1, α))
+# end
+
+
+# """
+# Equation 10,Ref. `Calculation of self and mutual impedances between sections of tranformer windings`, Wilcox et al. IEE Proceedings, 1989
+# """
+# function κFunk(a,r,z)
+#     √(4*a*r ./ (z^2 + (a+r)^2))
+# end
 
 
 

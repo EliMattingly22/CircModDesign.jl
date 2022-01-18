@@ -1,4 +1,4 @@
-using Elliptic
+# using Elliptic
 """
 This function calculates the inductance for an N array of coaxial wire loops
 

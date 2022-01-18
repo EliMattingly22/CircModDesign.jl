@@ -1,4 +1,4 @@
-using Optim
+# using Optim
 
 function PipeFlow(D,P,L;Fluid="Water",
     ΔT = 40,
@@ -67,13 +67,13 @@ function PipeFlow(D,P,L;Fluid="Water",
         
         # FFacEq(F)  = 1.14-2*log10(ϵ+9.35/(Re.*sqrt(F)))-1/sqrt(F)
         FFacEq(F)  = -2*log10( (ϵ/3.7) - 5.02/Re * log10(ϵ/3.7 + 13/Re) ) - 1 /√(F)
-        OptimCost(F) = abs.(FFacEq(F))
-        f = optimize(OptimCost,0.,1.).minimizer
+        OptimCost_2(F) = abs.(FFacEq(F))
+        f = optimize(OptimCost_2,0.,1.).minimizer
         LinVel = sqrt(2*P/(L/D*f*Dens))
         
         for i = 1:10
             Re = Dens*D*LinVel/DynVisc
-            FFacEq(F)  = -2*log10( (ϵ/3.7) - 5.02/Re * log10(ϵ/3.7 + 13/Re) ) - 1 /√(F)
+            # FFacEq(F)  = -2*log10( (ϵ/3.7) - 5.02/Re * log10(ϵ/3.7 + 13/Re) ) - 1 /√(F)
             OptimCost(F) = abs.(FFacEq(F))
             f = optimize(OptimCost,0.,1.).minimizer
             LinVel = sqrt(2*P/(L/D*f*Dens))

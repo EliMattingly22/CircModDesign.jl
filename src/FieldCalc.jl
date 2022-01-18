@@ -219,3 +219,12 @@ function DerivField(r,Wire_R=0.001;I=1)
     end
     return B
 end
+
+
+function BiotSavSpeedTest(NPathPoints, NTestPoints)
+    PointPath =  MakeEllip(1,1;NPts = NPathPoints)
+    TestPoints,W = PP_2_TestPoints(PointPath)
+
+   @time [BiotSav(PointPath,TestPoints[i,:]) for i in 1:length(TestPoints[:,1])]
+    
+end

@@ -1,8 +1,8 @@
 # using LinearAlgebra
-include("FieldCalc.jl")
-include("LitzACResist.jl")
-include("StrayCap.jl")
-include("InductanceCalc.jl")
+# include("FieldCalc.jl")
+# include("LitzACResist.jl")
+# include("StrayCap.jl")
+# include("InductanceCalc.jl")
 
 """
 This function makes an elliptic solenoid and calculates the inductance, capacitance, and resistance
