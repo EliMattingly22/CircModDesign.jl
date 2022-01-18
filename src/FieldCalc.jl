@@ -18,11 +18,11 @@ This function takes in:
             The function tends to inf near wires
 
 """
-function BiotSav(PointPath,r;Current=1,MinThreshold = 0.01)
+function BiotSav(PointPath,r;Current=1 ,MinThreshold = 0.01)
     PointPath = vcat(PointPath,PointPath[1,:]')
     NPts = length(PointPath[:,1])
-    dB = zeros(NPts-1,3)
-
+    # dB = zeros(NPts-1,3)
+    dB = [0. , 0., 0.]
     minDist = minimum(sqrt.(sum((PointPath .- repeat(transpose(r[:]),NPts,1)).^2,dims=2)))
     if minDist>= MinThreshold
         for I in 2:NPts
@@ -34,16 +34,50 @@ function BiotSav(PointPath,r;Current=1,MinThreshold = 0.01)
             R̂ = Rprime/RDist
 
                 if Current isa AbstractArray
-                    dB[I-1,:] = μ₀/(4*π) .* Current[I].*LinearAlgebra.cross(dL,R̂[:]) ./ (RDist)^2
+                    # dB[I-1,:] = μ₀/(4*π) .* Current[I].*LinearAlgebra.cross(dL,R̂[:]) ./ (RDist)^2
+                    dB .+= μ₀/(4*π) .* Current[I].*LinearAlgebra.cross(dL,R̂[:]) ./ (RDist)^2
+                
                 else
-                    dB[I-1,:] = μ₀/(4*π) .* Current.*LinearAlgebra.cross(dL,R̂[:]) ./ (RDist)^2
+                    # dB[I-1,:] = μ₀/(4*π) .* Current.*LinearAlgebra.cross(dL,R̂[:]) ./ (RDist)^2
+                    dB .+= μ₀/(4*π) .* Current.*LinearAlgebra.cross(dL,R̂[:]) ./ (RDist)^2
                 end
 
         end
-    else
+    # else
     #    plot(r[1],r[2],"r*")
     end
     sum(dB,dims=1)
+end
+
+function BiotSav(PointPath,dL,r,L;Current=1.0 ,MinThreshold = 0.01)
+    # PointPath = vcat(PointPath,PointPath[1,:]')
+    # NPts = length(PointPath[:,1])
+    # dB = zeros(NPts-1,3)
+    dB = [0. , 0., 0.]
+    # minDist = minimum(sqrt.(sum((PointPath .- repeat(transpose(r[:]),NPts,1)).^2,dims=2)))
+    # if minDist>= MinThreshold
+        for I in 2:L
+          
+            # MeanPoint = 
+            Rprime = r .- PointPath[I,:]
+
+            RDist = (sum(Rprime.^2))
+            R̂ = Rprime/sqrt(RDist)
+
+                # if Current isa AbstractArray
+                #     # dB[I-1,:] = μ₀/(4*π) .* Current[I].*LinearAlgebra.cross(dL,R̂[:]) ./ (RDist)^2
+                #     dB .+= 1e-7 .* Current[I].*LinearAlgebra.cross(dL[I-1,:],R̂[:]) ./ (RDist)^2
+                
+                # else
+                    # dB[I-1,:] = μ₀/(4*π) .* Current.*LinearAlgebra.cross(dL,R̂[:]) ./ (RDist)^2
+                    dB .+= 1e-7 .* Current.*LinearAlgebra.cross(dL[I-1,:],R̂[:]) ./ (RDist)
+                # end
+
+        end
+    # else
+    #    plot(r[1],r[2],"r*")
+    # end
+    dB
 end
 
 """
@@ -222,9 +256,17 @@ end
 
 
 function BiotSavSpeedTest(NPathPoints, NTestPoints)
-    PointPath =  MakeEllip(1,1;NPts = NPathPoints)
+    PointPath =  MakeEllip(1. ,1. ;NPts = NPathPoints)
     TestPoints,W = PP_2_TestPoints(PointPath)
-
-   @time [BiotSav(PointPath,TestPoints[i,:]) for i in 1:length(TestPoints[:,1])]
+    PointPath = vcat(PointPath,PointPath[1,:]')
+    dL = vcat([CircModDesign.VecDist(PointPath[I-1:I,:]) for I in 2:length(PointPath[:,1])]'...)
     
+    L = length(PointPath[:,1])    
+    dBMat = zeros(size(TestPoints))
+   @time begin
+    for I in 1:length(TestPoints[:,1])
+    dBMat[I,:] = BiotSav(PointPath,dL,TestPoints[I,:],L)
+    end
+   end
+   dBMat
 end
