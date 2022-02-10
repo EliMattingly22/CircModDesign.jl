@@ -33,9 +33,9 @@ function LitzWire_ACRes(
         PlotOn=false
 )
 
-        if BundleDiam < (NumStrands * StrandDiam)
-                error("Too many strands--will not fit if they are side-by-side")
-        end
+        # if BundleDiam < (NumStrands * StrandDiam)
+        #         error("Too many strands--will not fit if they are side-by-side")
+        # end
 
         ρ = 1.7e-8 #Ohm-meter
         WireL = pi * CoilDiam * CoilTurns
@@ -194,4 +194,16 @@ function Table23Terman(n)
                          return interp_linear(n)
                  end
 
+end
+
+
+function AWG(AWG_Num)
+        
+        Diam = .005 * 92^((36-AWG_Num)/39)*25.4 #mm
+                
+        Area = pi/4*Diam^2      
+        μ₀ = 4*π*1e-7
+        ρ = 1.7e-8 #Ohm-meter
+        MaxFreq =  ρ /((Diam*1e-3/2)^2 *μ₀*π)
+        return Diam, Area,MaxFreq
 end
