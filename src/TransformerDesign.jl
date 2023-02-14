@@ -155,7 +155,7 @@ end
 function MeasuredInductance2Params_Cantilever(ZₚSecₒ::Complex,ZₚSecₛ::Complex,ZₛPriₒ::Complex,f)
     Res = MeasuredInductance2Params_Cantilever(ZₚSecₒ,ZₚSecₛ,ZₛPriₒ)
     Zₘ1= Res[1] # ↣ 1/Z = 1/2πfL + 1/R
-    Xₘ = 1/imag(Zₘ1)
+    Xₘ = imag(Zₘ1)
     Lₘ = Xₘ/(2*π*f)
     Rₘ = 1/real(Zₘ1)
     println("Magnetizing Impedance = $(round(Lₘ;sigdigits=4))H || $(round(Rₘ;sigdigits=4))Ω")
