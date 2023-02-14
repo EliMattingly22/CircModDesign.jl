@@ -129,21 +129,44 @@ end
 
 
 function MeasuredInductance2Params(ZₚSecₒ,ZₚSecₛ,ZₛPriₒ,ZₛPriₛ)
-
     ZₚEqiv_SecLoad(Zₗ1,Zₘ1,Zₗ2,N,RTerm) = Zₗ1+ Par(Zₘ1,(1 / N^2 * (Zₗ2+RTerm))) #Primary referred impedance with some secondary termination (RTerm)
     ZₛEqiv_PriLoad(Zₗ1,Zₘ1,Zₗ2,N,RTerm) = Zₗ2+ N^2 * Par(Zₘ1,(Zₗ1+RTerm)) #Primary referred impedance with some secondary termination (RTerm)
-    
-
     Cost(Zₗ1,Zₘ1,Zₗ2,N) = abs((ZₚSecₒ - ZₚEqiv_SecLoad(Zₗ1,Zₘ1,Zₗ2,N,1e9)) + (ZₚSecₛ - ZₚEqiv_SecLoad(Zₗ1,Zₘ1,Zₗ2,N,0)) + 
                          (ZₛPriₒ - ZₛEqiv_PriLoad(Zₗ1,Zₘ1,Zₗ2,N,1e9)) + (ZₛPriₛ - ZₛEqiv_PriLoad(Zₗ1,Zₘ1,Zₗ2,N,0)))
-
-
     CostVecIn(Vec) = Cost(Vec[1],Vec[2],Vec[3],Vec[4])
-    optimize(CostVecIn, [10.0 , 40.0, 10.0, 2.0])
+    optimize(CostVecIn, [10.0 , 40.0, 1.0, 1.77])
+end
 
+function MeasuredInductance2Params_Cantilever(ZₚSecₒ,ZₚSecₛ,ZₛPriₒ)
+    
+    Zₘ1 =ZₚSecₒ
+    Zₗ1 = 1/(1/ZₚSecₛ - 1/Zₘ1)
+    N = ZₛPriₒ/(Zₘ1+Zₗ1)
+   return Zₘ1,Zₗ1,N
+end
+
+function MeasuredInductance2Params_Cantilever(ZₚSecₒ,ZₚSecₛ,ZₛPriₒ,f)
+    Res = MeasuredInductance2Params_Cantilever(ZₚSecₒ,ZₚSecₛ,ZₛPriₒ)
+println(Res[1:2] ./ (2*π*f))
+println(Res[3])
 
 end
 
+function MeasuredInductance2Params_Cantilever(ZₚSecₒ::Complex,ZₚSecₛ::Complex,ZₛPriₒ::Complex,f)
+    Res = MeasuredInductance2Params_Cantilever(ZₚSecₒ,ZₚSecₛ,ZₛPriₒ)
+    Zₘ1= Res[1] # ↣ 1/Z = 1/2πfL + 1/R
+    Xₘ = 1/imag(Zₘ1)
+    Lₘ = Xₘ/(2*π*f)
+    Rₘ = 1/real(Zₘ1)
+    println("Magnetizing Impedance = $(round(Lₘ;sigdigits=4))H || $(round(Rₘ;sigdigits=4))Ω")
+
+    Zₗ1 = Res[2]
+    Rₗ = real(Zₗ1)
+    Lₗ = imag(Zₗ1) / (2*π*f)
+    println("Leakage Impedance = $(round(Lₗ;sigdigits=4))H + $(round(Rₗ;sigdigits=4))Ω")    
+    println("Turns ratio: $(Res[3])")
+
+end
 
 
 # """

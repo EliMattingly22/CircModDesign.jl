@@ -284,7 +284,7 @@ function CircModel_SPICE(DriveFreq, VSrc,
 
     if ArchetypeNetFileName === nothing
 
-        ArchetypeNetFileName = joinpath(dirname(pathof(CircModDesign)),"Filter_Archetype_Damped_2.net")
+        ArchetypeNetFileName = joinpath(dirname(pathof(CircModDesign)),"Filter_Archetype_Damped_3.net")
 
     end
     SPICE_DF,NodeList,InputList,NumVSources = SPICE2Matrix(ArchetypeNetFileName)
