@@ -141,7 +141,7 @@ function MeasuredInductance2Params_Cantilever(ZₚSecₒ,ZₚSecₛ,ZₛPriₒ)
     
     Zₘ1 =ZₚSecₒ
     Zₗ1 = 1/(1/ZₚSecₛ - 1/Zₘ1)
-    N = ZₛPriₒ/(Zₘ1+Zₗ1)
+    N = sqrt(ZₛPriₒ/(Zₘ1+Zₗ1))
    return Zₘ1,Zₗ1,N
 end
 
@@ -165,6 +165,7 @@ function MeasuredInductance2Params_Cantilever(ZₚSecₒ::Complex,ZₚSecₛ::Co
     Lₗ = imag(Zₗ1) / (2*π*f)
     println("Leakage Impedance = $(round(Lₗ;sigdigits=4))H + $(round(Rₗ;sigdigits=4))Ω")    
     println("Turns ratio: $(Res[3])")
+    println("Inductance ratio: $(Res[3]^2)")
 
 end
 
