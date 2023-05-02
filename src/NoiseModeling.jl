@@ -66,10 +66,11 @@ function DetermineNoise(RVals::Vector,MeasNoise::Vector)
     return (OptimResults.minimizer)
 end
 
-function Noise(R_L,en,in;T=300)
+function Noise(Zₗ,en,in;T=300)
     k_b = 1.38e-23
-     sqrt.(4*k_b*T*R_L) .+ en .+ in*R_L
+     sqrt.(4*k_b*T*real(Zₗ)) .+ en .+ in*abs(Zₗ)
  end
+
 
 function ThermalNoise(R_L)
     k_b = 1.38e-23
