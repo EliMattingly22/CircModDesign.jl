@@ -10,7 +10,8 @@ using SpecialFunctions
 using FFTW
 using ACME
 using ElectricalEngineering
-using Gtk, DataFrames,PyPlot
+# using Gtk
+using DataFrames,PyPlot
 
 μ₀ = 4*π*1e-7
 
