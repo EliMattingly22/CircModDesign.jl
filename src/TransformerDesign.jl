@@ -138,12 +138,21 @@ function MeasuredInductance2Params(ZₚSecₒ,ZₚSecₛ,ZₛPriₒ,ZₛPriₛ)
 end
 
 function MeasuredInductance2Params_Cantilever(ZₚSecₒ,ZₚSecₛ,ZₛPriₒ)
+    Zₗ1 =ZₚSecₛ
+    Zₘ1 = ZₚSecₒ - Zₗ1
+    N = sqrt(ZₛPriₒ/Zₘ1)
+   return Zₘ1,Zₗ1,N
+end
+
+
+function MeasuredInductance2Params_CantileverMod(ZₚSecₒ,ZₚSecₛ,ZₛPriₒ)
     
     Zₘ1 =ZₚSecₒ
     Zₗ1 = 1/(1/ZₚSecₛ - 1/Zₘ1)
     N = sqrt(ZₛPriₒ/(Zₘ1+Zₗ1))
    return Zₘ1,Zₗ1,N
 end
+
 
 function MeasuredInductance2Params_Cantilever(ZₚSecₒ,ZₚSecₛ,ZₛPriₒ,f)
     Res = MeasuredInductance2Params_Cantilever(ZₚSecₒ,ZₚSecₛ,ZₛPriₒ)
